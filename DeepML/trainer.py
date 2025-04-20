@@ -1,3 +1,6 @@
+from torch.utils.data import DataLoader
+
+import os
 import sys
 path = "/home/edc240000/DeepML"
 sys.path.append(path)
@@ -7,15 +10,20 @@ import os
 root = "/groups/igonin/.seisbench"
 os.environ["SEISBENCH_CACHE_ROOT"] = root
 import joblib
-
+import pandas as pd
 import numpy as np
 import seisbench.data as sbd
 import seisbench.generate as sbg
 import matplotlib.pyplot as plt
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+from DeepML.model import MultiTaskCNN
 
 data = sbd.TXED()
 generator = sbg.GenericGenerator(data)
 # print(generator)
+# exit()
 
 normalize = sbg.Normalize(detrend_axis=0,
                             amp_norm_type="peak",
@@ -40,6 +48,7 @@ scaler = joblib.load(scaler_path)
 
 def normalize_magnitude(magnitude: float):
     magnitude = np.array([magnitude]).reshape(-1, 1)
+    print(magnitude)
     return scaler.transform(magnitude)
 
 def denormalize_magnitude(magnitude: np.ndarray):
@@ -62,47 +71,50 @@ generator.add_augmentations(
                             ]
                         )
 
+
+
+
+# Access a sample (check it’s working)
 sample = generator[340055]
+print(sample.keys())
+train_loader = DataLoader(generator, batch_size=32, 
+                          shuffle=True, num_workers=4)
 
-print("Sample keys:", sample.keys())
-print("\tSample X shape:", sample["X"].shape)
-print("\tSample Detection:", sample["y_detection"].shape)
-print("\tSample Magnitude:", sample["y_magnitude"].shape)
-print("Generation",generator)
-print("Example:", sample)
+print(train_loader)
 
-fig = plt.figure(figsize=(10, 7))
-axs = fig.subplots(2, 1)
-axs[0].plot(sample["X"].T)
-axs[0].text(
-    0.95, 0.95,                # x, y in axis coordinates (0 = left/bottom, 1 = right/top)
-    f"magnitude: {denormalize_magnitude(sample['y_magnitude'])[0]}",         # text string
-    transform=axs[0].transAxes,   # use axis coordinates
-    ha='right',               # horizontal alignment
-    va='top',                 # vertical alignment
-    fontsize=12,
-    bbox=dict(facecolor='white', alpha=0.8, edgecolor='none')  # optional: background box
-)
+model = MultiTaskCNN()
+optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
+loss_fn = nn.MSELoss()
 
+for epoch in range(10):
+    model.train()
+    for batch in train_loader:
+    #     print(batch["X"])
+    #     exit()
+        x = batch["X"]
+        m = batch["y_magnitude"]
+        y = batch["y_detection"]
+        
+        x = torch.tensor(x, dtype=torch.float32)
+        m = torch.tensor(m, dtype=torch.float32)
+        y = torch.tensor(y, dtype=torch.float32)
+        
+        print("X",x.shape)
+        print("m",m.shape)
+        print("y",y.shape)
+        # mags = batch["y_magnitude"][0]  # shape: (batch_size, 1)
+        # print(mags)
+#         waveforms = torch.tensor(waveforms, dtype=torch.float32).cuda()  # shape: (B, 3, T)
+#         mags = torch.tensor(mags, dtype=torch.float32).cuda()  # shape: (B, 1)
 
-axs[1].plot(sample["y_detection"].T)
-# axs[1].plot(sample["y_picks"].T)
+        y_pred,m_pred = model(x)
+        print("m_pred",m_pred.shape)
+        print("y_pred",y_pred.shape)
+        exit()
+#         loss = loss_fn(output, mags)
 
-axs[1].text(
-    0.95, 0.95,                # x, y in axis coordinates (0 = left/bottom, 1 = right/top)
-    f"magnitude: {sample['y_magnitude'].item()}",         # text string
-    transform=axs[1].transAxes,   # use axis coordinates
-    ha='right',               # horizontal alignment
-    va='top',                 # vertical alignment
-    fontsize=12,
-    bbox=dict(facecolor='white', alpha=0.8, edgecolor='none')  # optional: background box
-)
+#         optimizer.zero_grad()
+#         loss.backward()
+#         optimizer.step()
 
-# axs[0].text(0.5, 0.5, f"magnitude: {denormalize_magnitude(sample['y_magnitude'])}", 
-#             fontsize=12)
-
-
-path = "/home/edc240000/DeepML/tests/utils/test.png"
-
-
-plt.savefig(path)
+#     print(f"Epoch {epoch} | Loss: {loss.item():.4f}")
