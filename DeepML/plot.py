@@ -471,8 +471,34 @@ if __name__ == "__main__":
     # data.filter(noise_mask | event_mask)
     
     
-    ############ plot examples ###############
+    # ############ plot examples ###############
     
+    # import sys
+    # import os
+    
+    # path = "/home/edc240000/DeepML"
+    # sys.path.append(path)
+    # root = "/groups/igonin/.seisbench"
+    # os.environ["SEISBENCH_CACHE_ROOT"] = root
+
+    # # ##### tx dataset #####
+    # import seisbench.data as sbd
+    # from torch.utils.data import DataLoader
+    # from utils import create_sample_mask, prepare_data_generators
+    
+    
+    # magnitude_scaler = "/home/edc240000/DeepML/output/scaler/magnitude_scaler.pkl"
+    # save_path = "/home/edc240000/DeepML/output/figures/scalar_detection.png"
+    # batch_size = 100
+    
+    # data = sbd.TXED()
+    
+    # generators = prepare_data_generators(data=data,scaler_path=magnitude_scaler )
+    
+    # plot_scalar_detection_examples(generators["generator_train"],save_path=save_path)
+    
+    
+    ############ plot 3d seismic signal ############3
     import sys
     import os
     
@@ -489,13 +515,25 @@ if __name__ == "__main__":
     
     magnitude_scaler = "/home/edc240000/DeepML/output/scaler/magnitude_scaler.pkl"
     save_path = "/home/edc240000/DeepML/output/figures/scalar_detection.png"
-    batch_size = 100
+    index = 300000
     
     data = sbd.TXED()
     
     generators = prepare_data_generators(data=data,scaler_path=magnitude_scaler )
+    sample = generators["generator_train"][index]
+    fig, axes = plt.subplots(3,1,figsize=(10, 7))
     
-    plot_scalar_detection_examples(generators["generator_train"],save_path=save_path)
+    x = sample["X"].T
+    axes[0].plot(x[:,0],color="black",label="Z")
+    axes[1].plot(x[:,1],color="red",label="N")
+    axes[2].plot(x[:,2],color="blue",label="E")
+    
+    axes[0].legend(loc="upper right",fontsize=16)
+    axes[1].legend(loc="upper right",fontsize=16)
+    axes[2].legend(loc="upper right",fontsize=16)
+    path = "/home/edc240000/DeepML/output/figures/3d_Seismic_signal.png"
+    plt.savefig(path,dpi=300)
+    
     # print(len(generators["generator_train"]))
     
     # train_loader = DataLoader(generators["generator_train"], batch_size=batch_size, shuffle=True)
