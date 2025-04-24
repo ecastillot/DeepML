@@ -147,6 +147,108 @@ def plot_map(metadata, res="110m", connections=False, xlim=None, ylim=None, stat
 
     return fig
 
+def plot_metadata_distributions(metadata, save_path=None, dpi=300, xlims=None):
+    """
+    Plots distributions of source depth, magnitude, epicentral distance,
+    and S-P arrival time difference from a metadata DataFrame.
+
+    Parameters
+    ----------
+    metadata : pandas.DataFrame
+        DataFrame containing the required columns:
+        'source_depth_km', 'source_magnitude',
+        'source_latitude_deg', 'source_longitude_deg',
+        'station_latitude', 'station_longitude',
+        'trace_p_arrival_sample', 'trace_s_arrival_sample'
+
+    save_path : str, optional
+        If provided, saves the figure to this path.
+
+    dpi : int, optional
+        Dots per inch for saved figure. Default is 300.
+
+    xlims : dict, optional
+        Dictionary of x-axis limits for each subplot.
+        Keys: 'depth', 'magnitude', 'distance', 'sp_diff'
+        Values: tuple of (min, max) or None
+
+    Returns
+    -------
+    fig : matplotlib.figure.Figure
+        The matplotlib figure object.
+
+    axes : ndarray of Axes
+        Array of matplotlib Axes for further editing if needed.
+    """
+    # Compute epicentral distance using haversine formula
+    def haversine(lon1, lat1, lon2, lat2):
+        R = 6371.0  # Earth radius in kilometers
+        lon1, lat1, lon2, lat2 = map(np.radians, [lon1, lat1, lon2, lat2])
+        dlon = lon2 - lon1
+        dlat = lat2 - lat1
+        a = np.sin(dlat / 2.0) ** 2 + \
+            np.cos(lat1) * np.cos(lat2) * np.sin(dlon / 2.0) ** 2
+        c = 2 * np.arcsin(np.sqrt(a))
+        return R * c
+
+    epicentral_distance = haversine(
+        metadata["source_longitude_deg"].values,
+        metadata["source_latitude_deg"].values,
+        metadata["station_longitude_deg"].values,
+        metadata["station_latitude_deg"].values
+    )
+
+    sp_difference = (
+        metadata["trace_s_arrival_sample"] - metadata["trace_p_arrival_sample"]
+    )
+
+    if xlims is None:
+        xlims = {}
+
+    # Create subplots
+    fig, axes = plt.subplots(2, 2, figsize=(12, 10))
+    axes = axes.flatten()
+
+    # Plot source depth distribution
+    axes[0].hist(metadata["source_depth_km"].dropna(), bins=50, color='skyblue')
+    axes[0].set_title("Source Depth (km)")
+    axes[0].set_xlabel("Depth (km)")
+    axes[0].set_ylabel("Count")
+    if xlims.get("depth") is not None:
+        axes[0].set_xlim(xlims["depth"])
+
+    # Plot source magnitude distribution
+    axes[1].hist(metadata["source_magnitude"].dropna(), bins=30, color='salmon')
+    axes[1].set_title("Source Magnitude")
+    axes[1].set_xlabel("Magnitude")
+    axes[1].set_ylabel("Count")
+    if xlims.get("magnitude") is not None:
+        axes[1].set_xlim(xlims["magnitude"])
+
+    # Plot epicentral distance distribution
+    axes[2].hist(epicentral_distance, bins=50, color='lightgreen')
+    axes[2].set_title("Epicentral Distance (km)")
+    axes[2].set_xlabel("Distance (km)")
+    axes[2].set_ylabel("Count")
+    if xlims.get("distance") is not None:
+        axes[2].set_xlim(xlims["distance"])
+
+    # Plot S-P difference distribution
+    axes[3].hist(sp_difference.dropna(), bins=50, color='plum')
+    axes[3].set_title("S - P Arrival Time Difference (samples)")
+    axes[3].set_xlabel("S - P (samples)")
+    axes[3].set_ylabel("Count")
+    if xlims.get("sp_diff") is not None:
+        axes[3].set_xlim(xlims["sp_diff"])
+
+    plt.tight_layout()
+
+    # Save figure if path is given
+    if save_path:
+        fig.savefig(save_path, dpi=dpi, bbox_inches='tight')
+
+    return fig, axes
+
 def plot_training_history(json_path, save_path=None, dpi=300):
     """
     Loads training history from a JSON file and plots the loss and accuracy curves.
@@ -252,4 +354,46 @@ if __name__ == "__main__":
     # plot_map(data.metadata,states=True,save_path=filt_save_path,
     #          xlim=(-108.5,-92),ylim=(25,38))
 
+
     
+    ###### plot map ##########
+    import sys
+    import os
+    
+    path = "/home/edc240000/DeepML"
+    sys.path.append(path)
+    root = "/groups/igonin/.seisbench"
+    os.environ["SEISBENCH_CACHE_ROOT"] = root
+
+    # ##### tx dataset #####
+    import seisbench.data as sbd
+    import seisbench.generate as sbg
+    from utils import create_sample_mask
+    
+    save_path = "/home/edc240000/DeepML/output/figures/original_distribution.png"
+    filt_save_path = "/home/edc240000/DeepML/output/figures/filtered_distribution.png"
+    data = sbd.TXED()
+    
+    xlims = {
+    "depth": (0, 15),
+    "magnitude": (-1, 5),
+    "distance": (0, 400),
+    "sp_diff": (0, 4000)
+    }
+    
+    fig, axes = plot_metadata_distributions(data.metadata, 
+                                            save_path=save_path,
+                                            xlims=xlims)
+    
+    n_events = 2500
+    n_noise = 2500
+
+    noise_mask = create_sample_mask(metadata=data.metadata,category="noise",
+                                    n_samples=n_noise,random_state=42)
+    event_mask = create_sample_mask(metadata=data.metadata,category="earthquake_local",
+                                    n_samples=n_events,min_mag=2,random_state=42)
+
+    data.filter(noise_mask | event_mask)
+    fig, axes = plot_metadata_distributions(data.metadata, 
+                                            save_path=filt_save_path,
+                                            xlims=xlims)
