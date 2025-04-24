@@ -76,6 +76,105 @@ def handle_checkpoint(checkpoint_path):
     
     return checkpoint_path
 
+
+import seisbench.generate as sbg
+import numpy as np
+import pandas as pd
+import joblib
+
+
+def prepare_data_generators(data, scaler_path):
+    """
+    Prepares data generators and data loaders with augmentation and labelling.
+
+    Parameters
+    ----------
+    data : object
+        Data object that supports `.train_dev_test()` and `.plot_map()` methods.
+    scaler_path : str
+        Path to the precomputed magnitude scaler (joblib format).
+    batch_size : int, optional
+        Batch size for the DataLoaders. Default is 100.
+
+    Returns
+    -------
+    dict
+        Dictionary with generators and DataLoaders:
+        {
+            "generator_train": generator_train,
+            "generator_dev": generator_dev,
+            "generator_test": generator_test,
+            "train_loader": train_loader,
+            "val_loader": val_loader,
+            "test_loader": test_loader
+        }
+    """
+
+    # Load and split the dataset
+    train, dev, test = data.train_dev_test()
+
+    # Initialize data generators
+    generator_train = sbg.GenericGenerator(train)
+    generator_dev = sbg.GenericGenerator(dev)
+    generator_test = sbg.GenericGenerator(test)
+
+    # Load magnitude scaler
+    scaler = joblib.load(scaler_path)
+
+    # Define magnitude normalization/denormalization
+    def normalize_magnitude(magnitude):
+        magnitude_df = pd.DataFrame([[magnitude]], columns=["source_magnitude"])
+        return scaler.transform(magnitude_df)
+
+    def denormalize_magnitude(magnitude):
+        return scaler.inverse_transform(magnitude).flatten()
+
+    # Augmentations
+    normalize = sbg.Normalize(
+        detrend_axis=0,
+        amp_norm_type="peak",
+        eps=1e-8,
+        key="X"
+    )
+
+    detection_label = sbg.DetectionLabeller(
+        p_phases="trace_p_arrival_sample",
+        s_phases="trace_s_arrival_sample",
+        factor=1.5,
+        key=("X", "y_detection")
+    )
+
+    # Magnitude labeller
+    def magnitude_labeler(state_dict):
+        waveforms, metadata = state_dict["X"]
+        if metadata["trace_category"] == "noise":
+            norm_mag = np.array([[0.0]])
+        else:
+            norm_mag = normalize_magnitude(metadata["source_magnitude"])
+        state_dict["y_magnitude"] = norm_mag
+
+    # Event labeller
+    def detection_labeler(state_dict):
+        waveforms, metadata = state_dict["X"]
+        y = np.array([0]) if metadata["trace_category"] == "noise" else np.array([1])
+        state_dict["y_scalar_detection"] = [y.reshape(1, 1)]
+
+    # Attach augmentation functions to generators
+    for g in [generator_train, generator_dev, generator_test]:
+        g.augmentation(magnitude_labeler)
+        g.augmentation(detection_labeler)
+        g.add_augmentations([
+            normalize,
+            detection_label
+        ])
+
+
+    return {
+        "generator_train": generator_train,
+        "generator_dev": generator_dev,
+        "generator_test": generator_test,
+    }
+
 def create_sample_mask(metadata: pd.DataFrame, category: str,
                        n_samples: int, random_state: int = 42,
                        min_mag: float = None, max_mag: float = None) -> pd.Series:

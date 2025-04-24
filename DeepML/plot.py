@@ -1,6 +1,7 @@
 import json
 import matplotlib.pyplot as plt
 import numpy as np
+import random
 
 def plot_map(metadata, res="110m", connections=False, xlim=None, ylim=None, states=False, save_path=None, **kwargs):
     """
@@ -311,6 +312,79 @@ def plot_training_history(json_path, save_path=None, dpi=300):
 
     return fig, (ax1, ax2)
 
+
+def plot_scalar_detection_examples(generator, random_index=True,
+                                   start_index=0, alpha=0.15,
+                                   rows=10, cols=7,
+                                   save_path=None):
+    """
+    Plot waveform examples with scalar detection labels using a colored background.
+
+    Parameters
+    ----------
+    generator : seisbench.generate.GenericGenerator
+        The data generator containing waveform samples and labels.
+    random_index : bool, optional
+        Whether to randomly sample from the generator. Default is True.
+    start_index : int, optional
+        Index to start sampling from the generator (used if random_index=False). Default is 0.
+    alpha : float, optional
+        Transparency level of the background color (0 to 1). Default is 0.15.
+    rows : int, optional
+        Number of subplot rows. Default is 10.
+    cols : int, optional
+        Number of subplot columns. Default is 7.
+    save_path : str or None, optional
+        Path to save the figure. If None, the figure is not saved.
+
+    Returns
+    -------
+    fig : matplotlib.figure.Figure
+        The figure object for further customization or saving.
+    axs : np.ndarray of matplotlib.axes.Axes
+        Array of subplot axes.
+    """
+    total_plots = rows * cols
+    fig, axs = plt.subplots(rows, cols, figsize=(cols * 2, rows * 1.5))
+    axs = axs.flatten()
+
+    for idx in range(total_plots):
+        ax = axs[idx]
+        if random_index:
+            sample_index = random.randint(0, len(generator) - 1)
+        else:
+            sample_index = start_index + idx
+
+        sample = generator[sample_index]
+        x = sample["X"]
+        y_scalar_detection = sample["y_scalar_detection"]
+
+        label = y_scalar_detection.item()
+        color = "green" if label == 1 else "red"
+
+        # Plot waveform
+        ax.plot(x.T, color="black", linewidth=0.8)
+
+        # Set colored background
+        ax.set_facecolor(color)
+        ax.patch.set_alpha(alpha)
+
+        # Formatting
+        ax.set_xticks([])
+        ax.set_yticks([])
+        ax.set_title(f"{label}", fontsize=14, fontweight='bold')
+
+    # Hide any unused subplots
+    for idx in range(total_plots, len(axs)):
+        axs[idx].axis("off")
+
+    plt.tight_layout()
+
+    if save_path:
+        fig.savefig(save_path, dpi=300, bbox_inches='tight')
+
+    return fig, axs
+
 if __name__ == "__main__":
     
     # json_path = "/home/edc240000/DeepML/DeepML/training_history.json"
@@ -356,7 +430,49 @@ if __name__ == "__main__":
 
 
     
-    ###### plot map ##########
+    ###### plot distribution  ######################
+    
+    # import sys
+    # import os
+    
+    # path = "/home/edc240000/DeepML"
+    # sys.path.append(path)
+    # root = "/groups/igonin/.seisbench"
+    # os.environ["SEISBENCH_CACHE_ROOT"] = root
+
+    # # ##### tx dataset #####
+    # import seisbench.data as sbd
+    # import seisbench.generate as sbg
+    # from utils import create_sample_mask
+    
+    # save_path = "/home/edc240000/DeepML/output/figures/original_distribution.png"
+    # filt_save_path = "/home/edc240000/DeepML/output/figures/filtered_distribution.png"
+    # data = sbd.TXED()
+    
+    # xlims = {
+    # "depth": (0, 15),
+    # "magnitude": (-1, 5),
+    # "distance": (0, 400),
+    # "sp_diff": (0, 4000)
+    # }
+    
+    # fig, axes = plot_metadata_distributions(data.metadata, 
+    #                                         save_path=save_path,
+    #                                         xlims=xlims)
+    
+    # n_events = 2500
+    # n_noise = 2500
+
+    # noise_mask = create_sample_mask(metadata=data.metadata,category="noise",
+    #                                 n_samples=n_noise,random_state=42)
+    # event_mask = create_sample_mask(metadata=data.metadata,category="earthquake_local",
+    #                                 n_samples=n_events,min_mag=2,random_state=42)
+
+    # data.filter(noise_mask | event_mask)
+    
+    
+    ############ plot examples ###############
+    
     import sys
     import os
     
@@ -367,33 +483,23 @@ if __name__ == "__main__":
 
     # ##### tx dataset #####
     import seisbench.data as sbd
-    import seisbench.generate as sbg
-    from utils import create_sample_mask
+    from torch.utils.data import DataLoader
+    from utils import create_sample_mask, prepare_data_generators
     
-    save_path = "/home/edc240000/DeepML/output/figures/original_distribution.png"
-    filt_save_path = "/home/edc240000/DeepML/output/figures/filtered_distribution.png"
+    
+    magnitude_scaler = "/home/edc240000/DeepML/output/scaler/magnitude_scaler.pkl"
+    save_path = "/home/edc240000/DeepML/output/figures/scalar_detection.png"
+    batch_size = 100
+    
     data = sbd.TXED()
     
-    xlims = {
-    "depth": (0, 15),
-    "magnitude": (-1, 5),
-    "distance": (0, 400),
-    "sp_diff": (0, 4000)
-    }
+    generators = prepare_data_generators(data=data,scaler_path=magnitude_scaler )
     
-    fig, axes = plot_metadata_distributions(data.metadata, 
-                                            save_path=save_path,
-                                            xlims=xlims)
+    plot_scalar_detection_examples(generators["generator_train"],save_path=save_path)
+    # print(len(generators["generator_train"]))
     
-    n_events = 2500
-    n_noise = 2500
-
-    noise_mask = create_sample_mask(metadata=data.metadata,category="noise",
-                                    n_samples=n_noise,random_state=42)
-    event_mask = create_sample_mask(metadata=data.metadata,category="earthquake_local",
-                                    n_samples=n_events,min_mag=2,random_state=42)
-
-    data.filter(noise_mask | event_mask)
-    fig, axes = plot_metadata_distributions(data.metadata, 
-                                            save_path=filt_save_path,
-                                            xlims=xlims)
+    # train_loader = DataLoader(generators["generator_train"], batch_size=batch_size, shuffle=True)
+    # dev_loader = DataLoader(generators["generator_dev"], batch_size=batch_size, shuffle=False)
+    # test_loader = DataLoader(generators["generator_test"], batch_size=batch_size, shuffle=False)
+    
+    
