@@ -515,7 +515,8 @@ if __name__ == "__main__":
     
     magnitude_scaler = "/home/edc240000/DeepML/output/scaler/magnitude_scaler.pkl"
     save_path = "/home/edc240000/DeepML/output/figures/scalar_detection.png"
-    index = 300000
+    # index = 300000 #evenet
+    index = 3
     
     data = sbd.TXED()
     
@@ -531,7 +532,8 @@ if __name__ == "__main__":
     axes[0].legend(loc="upper right",fontsize=16)
     axes[1].legend(loc="upper right",fontsize=16)
     axes[2].legend(loc="upper right",fontsize=16)
-    path = "/home/edc240000/DeepML/output/figures/3d_Seismic_signal.png"
+    # path = "/home/edc240000/DeepML/output/figures/3d_Seismic_signal.png"
+    path = "/home/edc240000/DeepML/output/figures/3d_noise_signal.png"
     plt.savefig(path,dpi=300)
     
     # print(len(generators["generator_train"]))
