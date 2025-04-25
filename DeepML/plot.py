@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import random
 
+
 def plot_map(metadata, res="110m", connections=False, xlim=None, ylim=None, states=False, save_path=None, **kwargs):
     """
     Plots the dataset onto a map using the Mercator projection. Requires a cartopy installation.
@@ -385,7 +386,44 @@ def plot_scalar_detection_examples(generator, random_index=True,
 
     return fig, axs
 
-if __name__ == "__main__":
+def export_model_info(model, input_shape, export_base_path):
+    """
+    Exports a PNG of the model architecture (torchviz) and a TXT summary (torchinfo).
+
+    Parameters:
+    - model: PyTorch model instance
+    - input_shape: tuple, e.g., (1, 3, 6000)
+    - export_base_path: str, base file path without extension
+                        e.g., "exports/my_model"
+    """
+    os.makedirs(os.path.dirname(export_base_path), exist_ok=True)
+
+    # Set model to eval
+    model.eval()
+
+    # Dummy input for visualization
+    dummy_input = torch.randn(*input_shape)
+
+    # -----------------------
+    # Export graph (torchviz)
+    # -----------------------
+    output = model(dummy_input)
+    dot = make_dot(output, params=dict(model.named_parameters()))
+    dot.format = 'png'
+    dot.render(export_base_path, cleanup=True)
+    print(f"[✓] Graph saved at: {export_base_path}.png")
+
+    # -----------------------
+    # Export summary (torchinfo)
+    # -----------------------
+    model_summary = summary(model, input_size=input_shape, verbose=0)
+    summary_text = str(model_summary)
+    summary_path = f"{export_base_path}_summary.txt"
+    with open(summary_path, "w") as f:
+        f.write(summary_text)
+    print(f"[✓] Summary saved at: {summary_path}")
+
+# if __name__ == "__main__":
     
     # json_path = "/home/edc240000/DeepML/DeepML/training_history.json"
     # fig_path = "/home/edc240000/DeepML/DeepML/training_history.png"
@@ -499,47 +537,43 @@ if __name__ == "__main__":
     
     
     ############ plot 3d seismic signal ############3
-    import sys
-    import os
+    # import sys
+    # import os
     
-    path = "/home/edc240000/DeepML"
-    sys.path.append(path)
-    root = "/groups/igonin/.seisbench"
-    os.environ["SEISBENCH_CACHE_ROOT"] = root
+    # path = "/home/edc240000/DeepML"
+    # sys.path.append(path)
+    # root = "/groups/igonin/.seisbench"
+    # os.environ["SEISBENCH_CACHE_ROOT"] = root
 
-    # ##### tx dataset #####
-    import seisbench.data as sbd
-    from torch.utils.data import DataLoader
-    from utils import create_sample_mask, prepare_data_generators
+    # # ##### tx dataset #####
+    # import seisbench.data as sbd
+    # from torch.utils.data import DataLoader
+    # from utils import create_sample_mask, prepare_data_generators
     
     
-    magnitude_scaler = "/home/edc240000/DeepML/output/scaler/magnitude_scaler.pkl"
-    save_path = "/home/edc240000/DeepML/output/figures/scalar_detection.png"
-    # index = 300000 #evenet
-    index = 3
+    # magnitude_scaler = "/home/edc240000/DeepML/output/scaler/magnitude_scaler.pkl"
+    # save_path = "/home/edc240000/DeepML/output/figures/scalar_detection.png"
+    # # index = 300000 #evenet
+    # index = 3
     
-    data = sbd.TXED()
+    # data = sbd.TXED()
     
-    generators = prepare_data_generators(data=data,scaler_path=magnitude_scaler )
-    sample = generators["generator_train"][index]
-    fig, axes = plt.subplots(3,1,figsize=(10, 7))
+    # generators = prepare_data_generators(data=data,scaler_path=magnitude_scaler )
+    # sample = generators["generator_train"][index]
+    # fig, axes = plt.subplots(3,1,figsize=(10, 7))
     
-    x = sample["X"].T
-    axes[0].plot(x[:,0],color="black",label="Z")
-    axes[1].plot(x[:,1],color="red",label="N")
-    axes[2].plot(x[:,2],color="blue",label="E")
+    # x = sample["X"].T
+    # axes[0].plot(x[:,0],color="black",label="Z")
+    # axes[1].plot(x[:,1],color="red",label="N")
+    # axes[2].plot(x[:,2],color="blue",label="E")
     
-    axes[0].legend(loc="upper right",fontsize=16)
-    axes[1].legend(loc="upper right",fontsize=16)
-    axes[2].legend(loc="upper right",fontsize=16)
-    # path = "/home/edc240000/DeepML/output/figures/3d_Seismic_signal.png"
-    path = "/home/edc240000/DeepML/output/figures/3d_noise_signal.png"
-    plt.savefig(path,dpi=300)
+    # axes[0].legend(loc="upper right",fontsize=16)
+    # axes[1].legend(loc="upper right",fontsize=16)
+    # axes[2].legend(loc="upper right",fontsize=16)
+    # # path = "/home/edc240000/DeepML/output/figures/3d_Seismic_signal.png"
+    # path = "/home/edc240000/DeepML/output/figures/3d_noise_signal.png"
+    # plt.savefig(path,dpi=300)
     
-    # print(len(generators["generator_train"]))
     
-    # train_loader = DataLoader(generators["generator_train"], batch_size=batch_size, shuffle=True)
-    # dev_loader = DataLoader(generators["generator_dev"], batch_size=batch_size, shuffle=False)
-    # test_loader = DataLoader(generators["generator_test"], batch_size=batch_size, shuffle=False)
     
     

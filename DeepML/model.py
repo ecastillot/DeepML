@@ -1,5 +1,11 @@
 import torch.nn as nn
 import torch.nn.functional as F
+import torch
+from torchviz import make_dot
+from torchinfo import summary
+import os
+from PIL import Image, ImageDraw, ImageFont
+
 
 class DenseNet(nn.Module):
     def __init__(self, ):
@@ -79,6 +85,10 @@ class DetectionLoss(nn.Module):
 class CNNDetection(nn.Module):
     def __init__(self,input_length=6000,num_classes=1):
         super().__init__()
+        
+        self.input_length = input_length
+        self.num_classes = num_classes
+        
         self.encoder = nn.Sequential(
             nn.Conv1d(3, 8, kernel_size=11, padding="same"),
             nn.BatchNorm1d(8),
@@ -129,8 +139,59 @@ class CNNDetection(nn.Module):
         x = self.dense(x)    # Pass through dense layers
         return x
 
-    # def forward(self, x):
-    #     x = self.encoder(x)
-    #     y_pred = self.detection_head(x)  # shape: (batch, 1, 6000) after upsampling
-    #     m_pred = self.magnitude_head(x)  # shape: (batch, 1)
-    #     return y_pred, m_pred
+    def _text_to_image(self, text, image_path, font_size=14, dpi=300):
+        lines = text.split('\n')
+        font = ImageFont.load_default()
+
+        # Estimate image size
+        max_width = max([font.getlength(line) for line in lines])
+        image_height = font_size * len(lines) + 20
+
+        # Create image with estimated size
+        img = Image.new('RGB', (int(max_width) + 20, image_height), color='white')
+        draw = ImageDraw.Draw(img)
+
+        # Draw lines of text
+        for i, line in enumerate(lines):
+            draw.text((10, i * font_size), line, font=font, fill='black')
+
+        # Save image with specified DPI
+        img.save(image_path, dpi=(dpi, dpi))
+        print(f"[✓] Summary image saved at: {image_path} (DPI={dpi})")
+
+    def export_architecture(self, export_base_path):
+        """
+        Exports the model architecture:
+        - Graph (.png)
+        - Summary (.txt)
+        - Summary image (.png, DPI=300)
+        """
+        os.makedirs(os.path.dirname(export_base_path), exist_ok=True)
+        self.eval()
+        dummy_input = torch.randn(1, 3, self.input_length)
+
+        # Export graph image
+        output = self(dummy_input)
+        dot = make_dot(output, params=dict(self.named_parameters()))
+        dot.format = 'png'
+        dot.render(export_base_path, cleanup=True)
+        print(f"[✓] Graph saved at: {export_base_path}.png")
+
+        # Export summary text
+        model_summary = summary(self, input_size=(1, 3, self.input_length), verbose=0)
+        summary_text = str(model_summary)
+
+        summary_txt_path = f"{export_base_path}_summary.txt"
+        with open(summary_txt_path, "w") as f:
+            f.write(summary_text)
+        print(f"[✓] Summary saved at: {summary_txt_path}")
+
+        # Export summary image with high DPI
+        summary_img_path = f"{export_base_path}_summary.png"
+        self._text_to_image(summary_text, summary_img_path, dpi=300)
+        
+
+if __name__ == "__main__":
+    path = "/home/edc240000/DeepML/output/models/detection/cnn_detection"
+    model = CNNDetection(input_length=6000, num_classes=1)
+    model.export_architecture(path)
