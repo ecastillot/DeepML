@@ -2,7 +2,7 @@ import json
 import matplotlib.pyplot as plt
 import pandas as pd
 import os
-
+import torch
 import seisbench.generate as sbg
 import numpy as np
 import pandas as pd
@@ -220,3 +220,37 @@ def create_sample_mask(metadata: pd.DataFrame, category: str,
     final_mask = metadata.index.isin(sampled_indices)
 
     return final_mask
+
+def load_detection_outputs(model_outputs):
+    """
+    Load detection outputs from saved files.
+
+    Args:
+        model_outputs (dict): A dictionary where keys are model names and
+                              values are paths to the saved output files.
+
+    Returns:
+        dict: A dictionary where each key is a model name and the value is
+              another dictionary with 'y' (true labels) and 'y_pred' (predictions).
+    """
+    outputs = {}
+    
+    for model_name, output_path in model_outputs.items():
+        # Load the saved file
+        data = torch.load(output_path)
+        
+        # Extract true labels and predictions
+        y = data["y"].squeeze().cpu().numpy()
+        y_pred = data["y_pred"].squeeze().cpu().numpy()
+        y_pred = np.round(y_pred)
+        
+        print(f"loading: y {y.shape} | y_pred {y_pred.shape} ")
+        
+        # Store in the outputs dictionary
+        outputs[model_name] = {
+            "y": y,
+            "y_pred": y_pred
+        }
+    
+    return outputs
+        

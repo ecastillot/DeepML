@@ -2,7 +2,10 @@ import json
 import matplotlib.pyplot as plt
 import numpy as np
 import random
-
+import torch
+import itertools
+from sklearn.metrics import confusion_matrix
+from utils import load_detection_outputs
 
 def plot_map(metadata, res="110m", connections=False, xlim=None, ylim=None, states=False, save_path=None, **kwargs):
     """
@@ -476,35 +479,126 @@ def plot_scalar_detection_examples(generator, random_index=True,
     return fig, axs
 
 
+def plot_detection_confusion_matrix(model_outputs, save_path=None, rows=None, cols=None):
+    """
+    Plot confusion matrices for detection outputs of multiple models.
+
+    Args:
+        model_outputs (dict): Dictionary with model names as keys and file paths as values.
+        save_path (str, optional): If provided, saves the figure at this path with dpi=300.
+        rows (int, optional): Number of rows for subplots grid. Default determined automatically.
+        cols (int, optional): Number of columns for subplots grid. Default determined automatically.
+
+    Returns:
+        fig (matplotlib.figure.Figure): The created matplotlib figure.
+        axes (array-like): The matplotlib axes corresponding to each subplot.
+    """
+    # Load all outputs
+    outputs = load_detection_outputs(model_outputs)
+    
+    # Create figure
+    n_models = len(outputs)
+    
+    # Define grid size
+    if rows is None or cols is None:
+        rows = 1
+        cols = n_models
+    
+    fig, axes = plt.subplots(rows, cols, figsize=(5 * cols, 5 * rows))
+    fig.subplots_adjust(wspace=0.8, hspace=0.8)
+    
+    # Flatten axes for easier handling
+    if isinstance(axes, np.ndarray):
+        axes = axes.flatten()
+    else:
+        axes = [axes]
+
+    # First, compute all confusion matrices
+    cms = {}
+    for model_name, y in outputs.items():
+        y_true, y_pred = y["y"], y["y_pred"]
+        cm = confusion_matrix(y_true=y_true, y_pred=y_pred)
+        cms[model_name] = cm
+    
+    # Normalize color limits across all models
+    vmax = max(cm.max() for cm in cms.values())
+    
+    # Plot each confusion matrix
+    ims = []
+    for ax, (model_name, cm) in zip(axes, cms.items()):
+        im = ax.imshow(cm, interpolation='nearest', cmap=plt.cm.Blues, vmin=0, vmax=vmax)
+        ims.append(im)
+        ax.set_title(model_name,fontsize=18,fontweight="bold")
+        ax.set_xlabel('Predicted label',fontsize=15,fontweight="bold")
+        ax.set_ylabel('True label',fontsize=15,fontweight="bold")
+        
+        # Set tick marks
+        classes = ['noise', 'earthquake']
+        tick_marks = np.arange(len(classes))
+        ax.set_xticks(tick_marks)
+        ax.set_xticklabels(classes, rotation=45,fontsize=15)
+        ax.set_yticks(tick_marks)
+        ax.set_yticklabels(classes,fontsize=15)
+        
+        # Write numbers inside cells
+        thresh = cm.max() / 2
+        for i, j in itertools.product(range(cm.shape[0]), range(cm.shape[1])):
+            ax.text(j, i, format(cm[i, j], 'd'),
+                    horizontalalignment="center",
+                    color="white" if cm[i, j] > thresh else "black",
+                    fontsize=18)
+
+    # Hide unused axes if any
+    for ax in axes[len(cms):]:
+        ax.axis('off')
+    
+    # Add shared colorbar without overlapping
+    cbar_ax = fig.add_axes([1.02, 0.15, 0.02, 0.7])
+    cbar = fig.colorbar(ims[0], cax=cbar_ax)
+    cbar.ax.tick_params(labelsize=14)  # Adjust 14 to your preferred size
+    cbar.set_label('# Examples', fontsize=16)
+    
+    plt.tight_layout()
+    
+    # Save or show figure
+    if save_path:
+        fig.savefig(save_path, dpi=300, bbox_inches="tight")
+    else:
+        plt.show()
+        
+    return fig, axes
+    
+
 if __name__ == "__main__":
     
-    label_p = "Perceptron"
-    json_path_p = f"/home/edc240000/DeepML/output/models/detection/{label_p}/best/training_history_{label_p}.json"
-    fig_path_p = f"/home/edc240000/DeepML/output/models/detection/training_history_{label_p}.png"
-    plot_training_history(json_path=json_path_p,save_path=fig_path_p)
+    ################################# plot history 
+    # label_p = "Perceptron"
+    # json_path_p = f"/home/edc240000/DeepML/output/models/detection/{label_p}/best/training_history_{label_p}.json"
+    # fig_path_p = f"/home/edc240000/DeepML/output/models/detection/training_history_{label_p}.png"
+    # plot_training_history(json_path=json_path_p,save_path=fig_path_p)
     
-    label_dnn = "DNN"
-    json_path_dnn = f"/home/edc240000/DeepML/output/models/detection/{label_dnn}/best/training_history_{label_dnn}.json"
-    fig_path_dnn = f"/home/edc240000/DeepML/output/models/detection/training_history_{label_dnn}.png"
-    plot_training_history(json_path=json_path_dnn,save_path=fig_path_dnn)
+    # label_dnn = "DNN"
+    # json_path_dnn = f"/home/edc240000/DeepML/output/models/detection/{label_dnn}/best/training_history_{label_dnn}.json"
+    # fig_path_dnn = f"/home/edc240000/DeepML/output/models/detection/training_history_{label_dnn}.png"
+    # plot_training_history(json_path=json_path_dnn,save_path=fig_path_dnn)
     
-    label_cnnse = "CNNSE"
-    json_path_cnnse = f"/home/edc240000/DeepML/output/models/detection/{label_cnnse}/best/training_history_{label_cnnse}.json"
-    fig_path_cnnse = f"/home/edc240000/DeepML/output/models/detection/training_history_{label_cnnse}.png"
-    plot_training_history(json_path=json_path_cnnse,save_path=fig_path_cnnse)
+    # label_cnnse = "CNNSE"
+    # json_path_cnnse = f"/home/edc240000/DeepML/output/models/detection/{label_cnnse}/best/training_history_{label_cnnse}.json"
+    # fig_path_cnnse = f"/home/edc240000/DeepML/output/models/detection/training_history_{label_cnnse}.png"
+    # plot_training_history(json_path=json_path_cnnse,save_path=fig_path_cnnse)
     
     
-    label_cnnde = "CNNDE"
-    json_path_cnnde = f"/home/edc240000/DeepML/output/models/detection/{label_cnnde}/best/training_history_{label_cnnde}.json"
-    fig_path_cnnde = f"/home/edc240000/DeepML/output/models/detection/training_history_{label_cnnde}.png"
-    plot_training_history(json_path=json_path_cnnde,save_path=fig_path_cnnde)
+    # label_cnnde = "CNNDE"
+    # json_path_cnnde = f"/home/edc240000/DeepML/output/models/detection/{label_cnnde}/best/training_history_{label_cnnde}.json"
+    # fig_path_cnnde = f"/home/edc240000/DeepML/output/models/detection/training_history_{label_cnnde}.png"
+    # plot_training_history(json_path=json_path_cnnde,save_path=fig_path_cnnde)
     
-    fig_path = "/home/edc240000/DeepML/output/models/detection/training_stats.png"
-    json_paths = [json_path_p,json_path_dnn,json_path_cnnse,json_path_cnnde]
-    label_paths = [label_p,label_dnn,label_cnnse,label_cnnde]
-    fig, ax = plot_multiple_histories(json_paths,  label_paths,
-                                    save_path=fig_path, 
-                                    dpi=300)
+    # fig_path = "/home/edc240000/DeepML/output/models/detection/training_stats.png"
+    # json_paths = [json_path_p,json_path_dnn,json_path_cnnse,json_path_cnnde]
+    # label_paths = [label_p,label_dnn,label_cnnse,label_cnnde]
+    # fig, ax = plot_multiple_histories(json_paths,  label_paths,
+    #                                 save_path=fig_path, 
+    #                                 dpi=300)
     
     
     # ###### plot map ##########
@@ -649,5 +743,13 @@ if __name__ == "__main__":
     # plt.savefig(path,dpi=300)
     
     
-    
+    ################# detection confussion matrix ###########
+    model_outputs = {
+        "Perceptron": "/home/edc240000/DeepML/output/model_outputs/detection/Perceptron/Perceptron_outputs.pt",
+        "DNN": "/home/edc240000/DeepML/output/model_outputs/detection/DNN/DNN_outputs.pt",
+        "CNNSE": "/home/edc240000/DeepML/output/model_outputs/detection/CNNSE/CNNSE_outputs.pt",
+        "CNNDE": f"/home/edc240000/DeepML/output/model_outputs/detection/CNNDE/CNNDE_outputs.pt"
+    }
+    save_path = "/home/edc240000/DeepML/output/figures/detection_confussion_matrix.png"
+    fig, axes = plot_detection_confusion_matrix(model_outputs, save_path=save_path,rows=2, cols=2)
     
