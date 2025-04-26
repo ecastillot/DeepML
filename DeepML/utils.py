@@ -1,6 +1,12 @@
 import json
 import matplotlib.pyplot as plt
 import pandas as pd
+import os
+
+import seisbench.generate as sbg
+import numpy as np
+import pandas as pd
+import joblib
 
 def load_or_init_history(history_path="history.json"):
     """
@@ -23,13 +29,10 @@ def load_or_init_history(history_path="history.json"):
         elif user_input == "o":
             history = {
                 "train_loss": [],
-                "train_det_loss": [],
-                "train_mag_loss": [],
                 "train_acc": [],
                 "dev_acc": [],
                 "dev_loss": [],
-                "dev_det_loss": [],
-                "dev_mag_loss": [],
+                "acum_time" : []
             }
             print("🗑️  Previous history cleared. Starting fresh...\n")
         else:
@@ -38,11 +41,10 @@ def load_or_init_history(history_path="history.json"):
     else:
         history = {
             "train_loss": [],
-            "train_det_loss": [],
-            "train_mag_loss": [],
             "dev_loss": [],
-            "dev_det_loss": [],
-            "dev_mag_loss": [],
+            "train_acc": [],
+            "dev_acc": [],
+            "acum_time" : []
         }
         print("📄 No previous history found. Starting fresh...\n")
 
@@ -76,11 +78,6 @@ def handle_checkpoint(checkpoint_path):
     
     return checkpoint_path
 
-
-import seisbench.generate as sbg
-import numpy as np
-import pandas as pd
-import joblib
 
 
 def prepare_data_generators(data, scaler_path):

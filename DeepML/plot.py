@@ -386,50 +386,14 @@ def plot_scalar_detection_examples(generator, random_index=True,
 
     return fig, axs
 
-def export_model_info(model, input_shape, export_base_path):
-    """
-    Exports a PNG of the model architecture (torchviz) and a TXT summary (torchinfo).
 
-    Parameters:
-    - model: PyTorch model instance
-    - input_shape: tuple, e.g., (1, 3, 6000)
-    - export_base_path: str, base file path without extension
-                        e.g., "exports/my_model"
-    """
-    os.makedirs(os.path.dirname(export_base_path), exist_ok=True)
-
-    # Set model to eval
-    model.eval()
-
-    # Dummy input for visualization
-    dummy_input = torch.randn(*input_shape)
-
-    # -----------------------
-    # Export graph (torchviz)
-    # -----------------------
-    output = model(dummy_input)
-    dot = make_dot(output, params=dict(model.named_parameters()))
-    dot.format = 'png'
-    dot.render(export_base_path, cleanup=True)
-    print(f"[✓] Graph saved at: {export_base_path}.png")
-
-    # -----------------------
-    # Export summary (torchinfo)
-    # -----------------------
-    model_summary = summary(model, input_size=input_shape, verbose=0)
-    summary_text = str(model_summary)
-    summary_path = f"{export_base_path}_summary.txt"
-    with open(summary_path, "w") as f:
-        f.write(summary_text)
-    print(f"[✓] Summary saved at: {summary_path}")
-
-# if __name__ == "__main__":
+if __name__ == "__main__":
     
-    # json_path = "/home/edc240000/DeepML/DeepML/training_history.json"
-    # fig_path = "/home/edc240000/DeepML/DeepML/training_history.png"
-    # fig, ax = plot_training_history( json_path , 
-    #                                 save_path=fig_path, 
-    #                                 dpi=300)
+    json_path = "/home/edc240000/DeepML/output/models/detection/Perceptron/best/training_history_Perceptron.json"
+    fig_path = "/home/edc240000/DeepML/output/models/detection/Perceptron/best//training_history.png"
+    fig, ax = plot_training_history( json_path , 
+                                    save_path=fig_path, 
+                                    dpi=300)
     
     
     

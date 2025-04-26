@@ -81,14 +81,257 @@ class DetectionLoss(nn.Module):
     def forward(self, y_pred_det, y_true_det):
         loss_det = self.bce(y_pred_det, y_true_det)
         return loss_det
-    
-class CNNDetection(nn.Module):
+
+class Perceptron(nn.Module):
     def __init__(self,input_length=6000,num_classes=1):
         super().__init__()
         
         self.input_length = input_length
         self.num_classes = num_classes
+        self.name = "Perceptron"
+        self.dense = nn.Sequential(
+            nn.Flatten(),  # Flatten the output of the encoder
+            nn.Linear(3*self.input_length, 1),  # First dense layer
+            nn.Sigmoid()
+        )
+    
+    def forward(self, x):
+        x = self.dense(x)    # Pass through dense layers
+        return x
+
+    def _text_to_image(self, text, image_path, font_size=14, dpi=300):
+        lines = text.split('\n')
+        font = ImageFont.load_default()
+
+        # Estimate image size
+        max_width = max([font.getlength(line) for line in lines])
+        image_height = font_size * len(lines) + 20
+
+        # Create image with estimated size
+        img = Image.new('RGB', (int(max_width) + 20, image_height), color='white')
+        draw = ImageDraw.Draw(img)
+
+        # Draw lines of text
+        for i, line in enumerate(lines):
+            draw.text((10, i * font_size), line, font=font, fill='black')
+
+        # Save image with specified DPI
+        img.save(image_path, dpi=(dpi, dpi))
+        print(f"[✓] Summary image saved at: {image_path} (DPI={dpi})")
+
+    def export_architecture(self, export_path):
+        """
+        Exports the model architecture:
+        - Graph (.png)
+        - Summary (.txt)
+        - Summary image (.png, DPI=300)
+        """
+        os.makedirs(os.path.dirname(export_path), exist_ok=True)
+        self.eval()
+        dummy_input = torch.randn(1, 3, self.input_length)
+
+        # Export graph image
+        output = self(dummy_input)
+        dot = make_dot(output, params=dict(self.named_parameters()))
+        dot.format = 'png'
         
+        fig_summary_path = os.path.join(export_path,f"{self.name}_summary.png") 
+        dot.render(fig_summary_path, cleanup=True)
+        print(f"[✓] Graph saved at: {fig_summary_path}")
+
+        # Export summary text
+        model_summary = summary(self, input_size=(1, 3, self.input_length), verbose=0)
+        summary_text = str(model_summary)
+
+        summary_txt_path = os.path.join(export_path,f"{self.name}_summary.txt") 
+        # f"{export_base_path}_summary.txt"
+        with open(summary_txt_path, "w") as f:
+            f.write(summary_text)
+        print(f"[✓] Summary saved at: {summary_txt_path}")
+
+        # Export summary image with high DPI
+        # summary_img_path = f"{export_base_path}_summary.png"
+        summary_img_path = os.path.join(export_path,f"{self.name}_summary.png")
+        self._text_to_image(summary_text, summary_img_path, dpi=300)
+
+class DNN(nn.Module):
+    def __init__(self,input_length=6000,num_classes=1):
+        super().__init__()
+        
+        self.input_length = input_length
+        self.num_classes = num_classes
+        self.name = "DNN"
+        self.dense = nn.Sequential(
+            nn.Flatten(),  # Flatten the output of the encoder
+            nn.Linear(3*self.input_length, 128),  # First dense layer
+            nn.ReLU(),
+            nn.Dropout(0.5),  # Optional: Dropout for regularization
+            nn.Linear(128, 32),  # Second dense layer
+            nn.ReLU(),
+            nn.Linear(32, num_classes),  # Output layer (e.g., 2 for binary classification)
+            nn.Sigmoid()
+        )
+    
+    def forward(self, x):
+        x = self.dense(x)    # Pass through dense layers
+        return x
+
+    def _text_to_image(self, text, image_path, font_size=14, dpi=300):
+        lines = text.split('\n')
+        font = ImageFont.load_default()
+
+        # Estimate image size
+        max_width = max([font.getlength(line) for line in lines])
+        image_height = font_size * len(lines) + 20
+
+        # Create image with estimated size
+        img = Image.new('RGB', (int(max_width) + 20, image_height), color='white')
+        draw = ImageDraw.Draw(img)
+
+        # Draw lines of text
+        for i, line in enumerate(lines):
+            draw.text((10, i * font_size), line, font=font, fill='black')
+
+        # Save image with specified DPI
+        img.save(image_path, dpi=(dpi, dpi))
+        print(f"[✓] Summary image saved at: {image_path} (DPI={dpi})")
+
+    def export_architecture(self, export_path):
+        """
+        Exports the model architecture:
+        - Graph (.png)
+        - Summary (.txt)
+        - Summary image (.png, DPI=300)
+        """
+        os.makedirs(os.path.dirname(export_path), exist_ok=True)
+        self.eval()
+        dummy_input = torch.randn(1, 3, self.input_length)
+
+        # Export graph image
+        output = self(dummy_input)
+        dot = make_dot(output, params=dict(self.named_parameters()))
+        dot.format = 'png'
+        
+        fig_summary_path = os.path.join(export_path,f"{self.name}_summary.png") 
+        dot.render(fig_summary_path, cleanup=True)
+        print(f"[✓] Graph saved at: {fig_summary_path}")
+
+        # Export summary text
+        model_summary = summary(self, input_size=(1, 3, self.input_length), verbose=0)
+        summary_text = str(model_summary)
+
+        summary_txt_path = os.path.join(export_path,f"{self.name}_summary.txt") 
+        # f"{export_base_path}_summary.txt"
+        with open(summary_txt_path, "w") as f:
+            f.write(summary_text)
+        print(f"[✓] Summary saved at: {summary_txt_path}")
+
+        # Export summary image with high DPI
+        # summary_img_path = f"{export_base_path}_summary.png"
+        summary_img_path = os.path.join(export_path,f"{self.name}_summary.png")
+        self._text_to_image(summary_text, summary_img_path, dpi=300)
+
+class CNNSE(nn.Module):
+    def __init__(self,input_length=6000,num_classes=1):
+        super().__init__()
+        
+        self.input_length = input_length
+        self.num_classes = num_classes
+        self.name = "CNNSE"
+        self.encoder = nn.Sequential(
+            nn.Conv1d(3, 16, kernel_size=5, padding="same"),
+            nn.BatchNorm1d(16),
+            nn.ReLU(),
+            nn.MaxPool1d(2),  # -> (batch, 8, input_length/2) e.g., (batch, 8, 3000)
+            nn.Conv1d(16, 16, kernel_size=5, padding="same"),
+            nn.BatchNorm1d(16),
+            nn.ReLU(),
+            nn.MaxPool1d(2),  # -> (batch, 16, input_length/4) e.g., (batch, 16, 1500)
+        )
+        
+        # Calculate the flattened size after the encoder
+        self.flattened_size = 16 * (input_length // 4)  # e.g., 64 * 46 = 2944
+        
+        self.dense = nn.Sequential(
+            nn.Flatten(),  # Flatten the output of the encoder
+            nn.Linear(self.flattened_size, 128),  # First dense layer
+            nn.ReLU(),
+            nn.Dropout(0.5),  # Optional: Dropout for regularization
+            nn.Linear(128, 32),  # Second dense layer
+            nn.ReLU(),
+            nn.Linear(32, num_classes),  # Output layer (e.g., 2 for binary classification)
+            nn.Sigmoid()
+        )
+    
+    
+    
+    def forward(self, x):
+        x = self.encoder(x)  # Pass through convolutional layers
+        x = self.dense(x)    # Pass through dense layers
+        return x
+
+    def _text_to_image(self, text, image_path, font_size=14, dpi=300):
+        lines = text.split('\n')
+        font = ImageFont.load_default()
+
+        # Estimate image size
+        max_width = max([font.getlength(line) for line in lines])
+        image_height = font_size * len(lines) + 20
+
+        # Create image with estimated size
+        img = Image.new('RGB', (int(max_width) + 20, image_height), color='white')
+        draw = ImageDraw.Draw(img)
+
+        # Draw lines of text
+        for i, line in enumerate(lines):
+            draw.text((10, i * font_size), line, font=font, fill='black')
+
+        # Save image with specified DPI
+        img.save(image_path, dpi=(dpi, dpi))
+        print(f"[✓] Summary image saved at: {image_path} (DPI={dpi})")
+
+    def export_architecture(self, export_path):
+        """
+        Exports the model architecture:
+        - Graph (.png)
+        - Summary (.txt)
+        - Summary image (.png, DPI=300)
+        """
+        os.makedirs(os.path.dirname(export_path), exist_ok=True)
+        self.eval()
+        dummy_input = torch.randn(1, 3, self.input_length)
+
+        # Export graph image
+        output = self(dummy_input)
+        dot = make_dot(output, params=dict(self.named_parameters()))
+        dot.format = 'png'
+        
+        fig_summary_path = os.path.join(export_path,f"{self.name}_summary.png") 
+        dot.render(fig_summary_path, cleanup=True)
+        print(f"[✓] Graph saved at: {fig_summary_path}")
+
+        # Export summary text
+        model_summary = summary(self, input_size=(1, 3, self.input_length), verbose=0)
+        summary_text = str(model_summary)
+
+        summary_txt_path = os.path.join(export_path,f"{self.name}_summary.txt") 
+        # f"{export_base_path}_summary.txt"
+        with open(summary_txt_path, "w") as f:
+            f.write(summary_text)
+        print(f"[✓] Summary saved at: {summary_txt_path}")
+
+        # Export summary image with high DPI
+        # summary_img_path = f"{export_base_path}_summary.png"
+        summary_img_path = os.path.join(export_path,f"{self.name}_summary.png")
+        self._text_to_image(summary_text, summary_img_path, dpi=300)
+    
+class CNNDE(nn.Module):
+    def __init__(self,input_length=6000,num_classes=1):
+        super().__init__()
+        
+        self.input_length = input_length
+        self.num_classes = num_classes
+        self.name = "CNNDE"
         self.encoder = nn.Sequential(
             nn.Conv1d(3, 8, kernel_size=11, padding="same"),
             nn.BatchNorm1d(8),
@@ -159,14 +402,14 @@ class CNNDetection(nn.Module):
         img.save(image_path, dpi=(dpi, dpi))
         print(f"[✓] Summary image saved at: {image_path} (DPI={dpi})")
 
-    def export_architecture(self, export_base_path):
+    def export_architecture(self, export_path):
         """
         Exports the model architecture:
         - Graph (.png)
         - Summary (.txt)
         - Summary image (.png, DPI=300)
         """
-        os.makedirs(os.path.dirname(export_base_path), exist_ok=True)
+        os.makedirs(os.path.dirname(export_path), exist_ok=True)
         self.eval()
         dummy_input = torch.randn(1, 3, self.input_length)
 
@@ -174,24 +417,27 @@ class CNNDetection(nn.Module):
         output = self(dummy_input)
         dot = make_dot(output, params=dict(self.named_parameters()))
         dot.format = 'png'
-        dot.render(export_base_path, cleanup=True)
-        print(f"[✓] Graph saved at: {export_base_path}.png")
+        
+        fig_summary_path = os.path.join(export_path,f"{self.name}_summary.png") 
+        dot.render(fig_summary_path, cleanup=True)
+        print(f"[✓] Graph saved at: {fig_summary_path}")
 
         # Export summary text
         model_summary = summary(self, input_size=(1, 3, self.input_length), verbose=0)
         summary_text = str(model_summary)
 
-        summary_txt_path = f"{export_base_path}_summary.txt"
+        summary_txt_path = os.path.join(export_path,f"{self.name}_summary.txt") 
+        # f"{export_base_path}_summary.txt"
         with open(summary_txt_path, "w") as f:
             f.write(summary_text)
         print(f"[✓] Summary saved at: {summary_txt_path}")
 
         # Export summary image with high DPI
-        summary_img_path = f"{export_base_path}_summary.png"
+        # summary_img_path = f"{export_base_path}_summary.png"
+        summary_img_path = os.path.join(export_path,f"{self.name}_summary.png")
         self._text_to_image(summary_text, summary_img_path, dpi=300)
-        
 
 if __name__ == "__main__":
     path = "/home/edc240000/DeepML/output/models/detection/cnn_detection"
-    model = CNNDetection(input_length=6000, num_classes=1)
+    model = CNNDE(input_length=6000, num_classes=1)
     model.export_architecture(path)
