@@ -541,6 +541,7 @@ def plot_scalar_detection_test_examples(predictions,
         for idx in range(total_plots, len(axs)):
             axs[idx].axis("off")
 
+        fig.suptitle(test_label, fontsize=16, fontweight='bold')
         plt.tight_layout()
 
         if savedir_path:
