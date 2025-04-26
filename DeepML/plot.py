@@ -332,7 +332,7 @@ def plot_training_history(json_path, save_path=None, dpi=300):
     return fig, (ax1, ax2)
 
 
-def plot_multiple_histories(json_paths,label_paths ,save_path=None, dpi=300):
+def plot_multiple_histories(json_paths,label_paths,loss_limits=(-1,50),save_path=None, dpi=300):
     """
     Plots loss, accuracy, and acum_time for train and dev from multiple training history JSON files.
 
@@ -363,12 +363,19 @@ def plot_multiple_histories(json_paths,label_paths ,save_path=None, dpi=300):
             train_vals = history.get(train_key, [])
             dev_vals = history.get(dev_key, [])
 
+            if train_key == "train_loss":
+                # print(*loss_limits)
+                axes[row_idx][0].set_ylim(*loss_limits)
+            if dev_key == "dev_loss":
+                # print(*loss_limits)
+                axes[row_idx][0].set_ylim(*loss_limits)
+            
             if train_vals:
                 epochs = range(1, len(train_vals) + 1)
-                axes[row_idx][0].plot(epochs, train_vals, label=label, color=colors[idx])
+                axes[row_idx][0].plot(epochs, train_vals, label=label, color=colors[idx],linewidth=3)
             if dev_vals:
                 epochs = range(1, len(dev_vals) + 1)
-                axes[row_idx][1].plot(epochs, dev_vals, label=label, color=colors[idx])
+                axes[row_idx][1].plot(epochs, dev_vals, label=label, color=colors[idx],linewidth=3)
 
     # Titles and labels
     titles = [
@@ -473,7 +480,7 @@ if __name__ == "__main__":
     
     label_p = "Perceptron"
     json_path_p = f"/home/edc240000/DeepML/output/models/detection/{label_p}/best/training_history_{label_p}.json"
-    fig_path_p = f"/home/edc240000/DeepML/output/models/detection/training_history.png"
+    fig_path_p = f"/home/edc240000/DeepML/output/models/detection/training_history_{label_p}.png"
     plot_training_history(json_path=json_path_p,save_path=fig_path_p)
     
     label_dnn = "DNN"
