@@ -174,6 +174,7 @@ for model in models:
         # Scheduler step
         scheduler.step(avg_dev_loss)
 
+        torch.save(model.state_dict(), checkpoint_path)
         # # Early stopping + model saving
         # if avg_dev_loss < best_dev_loss:
         #     print("\u2705 New best model. Saving...") #  \u2705  good check emoticon
