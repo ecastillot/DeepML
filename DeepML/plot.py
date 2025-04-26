@@ -332,6 +332,70 @@ def plot_training_history(json_path, save_path=None, dpi=300):
     return fig, (ax1, ax2)
 
 
+def plot_multiple_histories(json_paths,label_paths ,save_path=None, dpi=300):
+    """
+    Plots loss, accuracy, and acum_time for train and dev from multiple training history JSON files.
+
+    Parameters:
+    - json_paths (list of str): List of paths to JSON files.
+    - save_path (str, optional): Path to save the resulting figure.
+    - dpi (int, optional): Dots per inch for saving the figure.
+
+    Returns:
+    - fig: The matplotlib figure.
+    - axes: 2D list of axes [rows][columns].
+    """
+    fig, axes = plt.subplots(3, 2, figsize=(14, 12), sharex=False)
+    colors = plt.cm.viridis_r(range(0, 256, max(1, 256 // len(json_paths))))
+
+    for idx, json_path in enumerate(json_paths):
+        with open(json_path, "r") as f:
+            history = json.load(f)
+
+        label = label_paths[idx]
+
+        # Safe plotting for each key
+        for row_idx, (train_key, dev_key) in enumerate([
+            ("train_loss", "dev_loss"),
+            ("train_acc", "dev_acc"),
+            ("acum_time", "acum_time")
+        ]):
+            train_vals = history.get(train_key, [])
+            dev_vals = history.get(dev_key, [])
+
+            if train_vals:
+                epochs = range(1, len(train_vals) + 1)
+                axes[row_idx][0].plot(epochs, train_vals, label=label, color=colors[idx])
+            if dev_vals:
+                epochs = range(1, len(dev_vals) + 1)
+                axes[row_idx][1].plot(epochs, dev_vals, label=label, color=colors[idx])
+
+    # Titles and labels
+    titles = [
+        ["Train Loss", "Dev Loss"],
+        ["Train Accuracy", "Dev Accuracy"],
+        ["Train Accumulated Time", "Dev Accumulated Time"]
+    ]
+    ylabels = ["Loss", "Accuracy", "Acum Time"]
+
+    for row in range(3):
+        for col in range(2):
+            axes[row][col].set_title(titles[row][col], fontsize=18)
+            axes[row][col].set_xlabel("Epoch", fontsize=16)
+            axes[row][col].set_ylabel(ylabels[row], fontsize=16)
+            axes[row][col].grid(True)
+            axes[row][col].tick_params(axis='both',labelsize=16)
+
+    axes[0][0].legend(fontsize=16, loc="best")
+
+    fig.tight_layout()
+
+    if save_path:
+        fig.savefig(save_path, dpi=dpi)
+        print(f"Figure saved to {save_path}")
+
+    return fig, axes
+
 def plot_scalar_detection_examples(generator, random_index=True,
                                    start_index=0, alpha=0.15,
                                    rows=10, cols=7,
@@ -407,18 +471,33 @@ def plot_scalar_detection_examples(generator, random_index=True,
 
 if __name__ == "__main__":
     
-    # json_path = "/home/edc240000/DeepML/output/models/detection/Perceptron/best/training_history_Perceptron.json"
-    # fig_path = "/home/edc240000/DeepML/output/models/detection/Perceptron/best//training_history.png"
-    json_path = "/home/edc240000/DeepML/output/models/detection/DNN/best/training_history_DNN.json"
-    fig_path = "/home/edc240000/DeepML/output/models/detection/DNN/best//training_history.png"
-    json_path = "/home/edc240000/DeepML/output/models/detection/CNNSE/best/training_history_CNNSE.json"
-    fig_path = "/home/edc240000/DeepML/output/models/detection/CNNSE/best//training_history.png"
-    json_path = "/home/edc240000/DeepML/output/models/detection/CNNDE/best/training_history_CNNDE.json"
-    fig_path = "/home/edc240000/DeepML/output/models/detection/CNNDE/best//training_history.png"
-    fig, ax = plot_training_history( json_path , 
+    label_p = "Perceptron"
+    json_path_p = f"/home/edc240000/DeepML/output/models/detection/{label_p}/best/training_history_{label_p}.json"
+    fig_path_p = f"/home/edc240000/DeepML/output/models/detection/training_history.png"
+    plot_training_history(json_path=json_path_p,save_path=fig_path_p)
+    
+    label_dnn = "DNN"
+    json_path_dnn = f"/home/edc240000/DeepML/output/models/detection/{label_dnn}/best/training_history_{label_dnn}.json"
+    fig_path_dnn = f"/home/edc240000/DeepML/output/models/detection/training_history_{label_dnn}.png"
+    plot_training_history(json_path=json_path_dnn,save_path=fig_path_dnn)
+    
+    label_cnnse = "CNNSE"
+    json_path_cnnse = f"/home/edc240000/DeepML/output/models/detection/{label_cnnse}/best/training_history_{label_cnnse}.json"
+    fig_path_cnnse = f"/home/edc240000/DeepML/output/models/detection/training_history_{label_cnnse}.png"
+    plot_training_history(json_path=json_path_cnnse,save_path=fig_path_cnnse)
+    
+    
+    label_cnnde = "CNNDE"
+    json_path_cnnde = f"/home/edc240000/DeepML/output/models/detection/{label_cnnde}/best/training_history_{label_cnnde}.json"
+    fig_path_cnnde = f"/home/edc240000/DeepML/output/models/detection/training_history_{label_cnnde}.png"
+    plot_training_history(json_path=json_path_cnnde,save_path=fig_path_cnnde)
+    
+    fig_path = "/home/edc240000/DeepML/output/models/detection/training_stats.png"
+    json_paths = [json_path_p,json_path_dnn,json_path_cnnse,json_path_cnnde]
+    label_paths = [label_p,label_dnn,label_cnnse,label_cnnde]
+    fig, ax = plot_multiple_histories(json_paths,  label_paths,
                                     save_path=fig_path, 
                                     dpi=300)
-    
     
     
     # ###### plot map ##########
