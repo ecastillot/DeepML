@@ -878,7 +878,7 @@ if __name__ == "__main__":
     
     
     
-    ############### PLOT TEST EXAMPLES ############3
+    ###################### PLOT TEST EXAMPLES #################
     
     
     import sys
@@ -890,7 +890,7 @@ if __name__ == "__main__":
     from torch.utils.data import DataLoader
     from torch.utils.data import Subset, DataLoader
     
-    from DeepML.scalar_detection.models import CNNSE,CNNDE,DNN,Perceptron,DetectionLoss
+    from DeepML.scalar_detection.models import CNNSE,CNNDE,DNN,Perceptron
     from utils import (create_sample_mask, prepare_data_generators,
                         load_detection_outputs, get_scalar_detection_predictions)
     
@@ -901,7 +901,7 @@ if __name__ == "__main__":
     data = sbd.TXED()
     n_events = 2500
     n_noise = 2500
-    nrows, ncols = 5,5
+    nrows, ncols = 4,4
 
     noise_mask = create_sample_mask(metadata=data.metadata,category="noise",
                                     n_samples=n_noise,random_state=42)
@@ -913,7 +913,7 @@ if __name__ == "__main__":
     generators = prepare_data_generators(data=data,scaler_path=magnitude_scaler )
     test_loader = DataLoader(generators["generator_test"], batch_size=100, shuffle=False)
     
-    n_samples = 20
+    n_samples = nrows* ncols
     full_test_dataset = generators["generator_test"]
     all_indices = list(range(len(full_test_dataset)))
     random_indices = random.sample(all_indices, n_samples)
@@ -937,34 +937,8 @@ if __name__ == "__main__":
                                 model_paths=model_paths,
                                 data_loader=small_test_loader,
                                 load_y=True,load_x=True)
-    # print(predictions)
-    # n_traces = np.random.randint(low=0, high=len(generators["generator_test"]),
-    #                              size=int(nrows*ncols))
-    # trace_loader = {}
-    # for idx in n_traces:
-    #     sample = generators["generator_test"][idx]
-        # x = sample["X"]
-        # y_scalar_detection = sample["y_scalar_detection"].squeeze()
-        # y_pred = test_predictions[sample_index]
-        
-    # print(n_traces)
-    # print(n_traces.shape)
-    # predictions = get_predictions(model_classes=model_classes,
-    #                               model_paths=model_paths,
-    #                               data_loader=DataLoader)
-    # print(predictions)
-    # outputs = load_detection_outputs(model_outputs=model_outputs)
-    name2plot = "CNNDE"
-    
-    # # # print(len(generators["generator_test"]))
-    # # # exit()
-    
-    # # # save_path = "/home/edc240000/DeepML/output/figures/detection_confussion_matrix.png"
-    # # # fig, axes = plot_detection_confusion_matrix(model_outputs, save_path=save_path,rows=2, cols=2)
     savedir_path = "/home/edc240000/DeepML/output/figures/detection_test_examples"
-    # # test_predictions = outputs[name2plot]["y_pred"]
     plot_scalar_detection_test_examples(predictions=predictions,
                                         savedir_path=savedir_path,
                                         cols=4,rows=4)
     
-    # plot_SCA_roc_curves(model_outputs, save_path=save_path)
