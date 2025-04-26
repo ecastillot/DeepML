@@ -16,7 +16,7 @@ from torch.utils.data import DataLoader
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from DeepML.model import MultiTaskCNN,DenseNet,CombinedLoss
+from DeepML.DeepML.detection_model import MultiTaskCNN,DenseNet,CombinedLoss
 import json
 import matplotlib.pyplot as plt
 

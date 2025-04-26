@@ -1,3 +1,7 @@
+import os
+root = "/groups/igonin/.seisbench"
+os.environ["SEISBENCH_CACHE_ROOT"] = root
+    
 import json
 import matplotlib.pyplot as plt
 import numpy as np
@@ -5,8 +9,9 @@ import random
 import torch
 import itertools
 from sklearn.metrics import confusion_matrix
-from utils import load_detection_outputs
 from sklearn.metrics import roc_curve, auc
+
+from utils import load_detection_outputs
 
 def plot_map(metadata, res="110m", connections=False, xlim=None, ylim=None, states=False, save_path=None, **kwargs):
     """
@@ -480,6 +485,85 @@ def plot_scalar_detection_examples(generator, random_index=True,
     return fig, axs
 
 
+def plot_scalar_detection_test_examples(predictions,
+                                        test_label,
+                                        # alpha=0.15,
+                                        rows=1, cols=1,
+                                        save_path=None):
+    """
+    Plot waveform examples with scalar detection labels using a colored background.
+
+    Parameters
+    ----------
+    random_index : bool, optional
+        Whether to randomly sample from the generator. Default is True.
+    start_index : int, optional
+        Index to start sampling from the generator (used if random_index=False). Default is 0.
+    alpha : float, optional
+        Transparency level of the background color (0 to 1). Default is 0.15.
+    rows : int, optional
+        Number of subplot rows. Default is 10.
+    cols : int, optional
+        Number of subplot columns. Default is 7.
+    save_path : str or None, optional
+        Path to save the figure. If None, the figure is not saved.
+
+    Returns
+    -------
+    fig : matplotlib.figure.Figure
+        The figure object for further customization or saving.
+    axs : np.ndarray of matplotlib.axes.Axes
+        Array of subplot axes.
+    """
+    total_plots = rows * cols
+    fig, axs = plt.subplots(rows, cols, figsize=(cols * 2, rows * 1.5))
+    axs = axs.flatten()
+    
+    model_predictions = predictions[test_label]
+    x = model_predictions["x"]
+    y = model_predictions["y"].squeeze()
+    y_pred = model_predictions["y_pred"].squeeze()
+
+    for idx in range(total_plots):
+        ax = axs[idx]
+        
+        x_idx = x[idx]
+        y_idx = y[idx]
+        y_pred_idx = y_pred[idx]
+        
+        
+        print(y_pred_idx, y_idx)
+        if y_idx == round(y_pred_idx):
+            color = "green"
+        else:
+            color = "red"
+
+        # label = y_scalar_detection.item()
+        # color = "green" if label == 1 else "red"
+
+        # Plot waveform
+        ax.plot(x_idx.T, color=color, linewidth=0.8)
+
+        # Set colored background
+        # ax.set_facecolor(color)
+        # ax.patch.set_alpha(alpha)
+
+        # Formatting
+        ax.set_xticks([])
+        ax.set_yticks([])
+        ax.set_title(f"{y_pred}", fontsize=14, fontweight='bold')
+
+    # Hide any unused subplots
+    for idx in range(total_plots, len(axs)):
+        axs[idx].axis("off")
+
+    plt.tight_layout()
+
+    if save_path:
+        fig.savefig(save_path, dpi=300, bbox_inches='tight')
+
+    return fig, axs
+
 def plot_detection_confusion_matrix(model_outputs, save_path=None, rows=None, cols=None):
     """
     Plot confusion matrices for detection outputs of multiple models.
@@ -518,6 +602,7 @@ def plot_detection_confusion_matrix(model_outputs, save_path=None, rows=None, co
     cms = {}
     for model_name, y in outputs.items():
         y_true, y_pred = y["y"], y["y_pred"]
+        y_pred = np.round(y_pred)
         cm = confusion_matrix(y_true=y_true, y_pred=y_pred)
         cms[model_name] = cm
     
@@ -588,7 +673,7 @@ def plot_detection_roc_curves(model_outputs, save_path=None):
 
     for model_name, y in outputs.items():
         y_true = y["y"]
-        y_score = y["y_pred"]  # Probabilities or continuous scores needed for ROC
+        y_score = np.round(y["y_pred"])  # Probabilities or continuous scores needed for ROC
         
         # Compute ROC curve and ROC area
         fpr, tpr, _ = roc_curve(y_true, y_score)
@@ -790,14 +875,108 @@ if __name__ == "__main__":
     # plt.savefig(path,dpi=300)
     
     
-    ################# detection confussion matrix ###########
-    model_outputs = {
-        "Perceptron": "/home/edc240000/DeepML/output/model_outputs/detection/Perceptron/Perceptron_outputs.pt",
-        "DNN": "/home/edc240000/DeepML/output/model_outputs/detection/DNN/DNN_outputs.pt",
-        "CNNSE": "/home/edc240000/DeepML/output/model_outputs/detection/CNNSE/CNNSE_outputs.pt",
-        "CNNDE": f"/home/edc240000/DeepML/output/model_outputs/detection/CNNDE/CNNDE_outputs.pt"
-    }
+    ################# detection confussion matrix and ROC###########
+    # model_outputs = {
+    #     "Perceptron": "/home/edc240000/DeepML/output/model_outputs/detection/Perceptron/Perceptron_outputs.pt",
+    #     "DNN": "/home/edc240000/DeepML/output/model_outputs/detection/DNN/DNN_outputs.pt",
+    #     "CNNSE": "/home/edc240000/DeepML/output/model_outputs/detection/CNNSE/CNNSE_outputs.pt",
+    #     "CNNDE": f"/home/edc240000/DeepML/output/model_outputs/detection/CNNDE/CNNDE_outputs.pt"
+    # }
     # save_path = "/home/edc240000/DeepML/output/figures/detection_confussion_matrix.png"
     # fig, axes = plot_detection_confusion_matrix(model_outputs, save_path=save_path,rows=2, cols=2)
-    save_path = "/home/edc240000/DeepML/output/figures/detection_ROC.png"
-    plot_detection_roc_curves(model_outputs, save_path=save_path)
+    # save_path = "/home/edc240000/DeepML/output/figures/detection_ROC.png"
+    # plot_detection_roc_curves(model_outputs, save_path=save_path)
+    
+    
+    
+    ############### PLOT TEST EXAMPLES ############3
+    
+    
+    import sys
+    path = "/home/edc240000/DeepML"
+    sys.path.append(path)
+
+    # ##### tx dataset #####
+    import seisbench.data as sbd
+    from torch.utils.data import DataLoader
+    from torch.utils.data import Subset, DataLoader
+    
+    from DeepML.scalar_detection.models import CNNSE,CNNDE,DNN,Perceptron,DetectionLoss
+    from utils import (create_sample_mask, prepare_data_generators,
+                        load_detection_outputs, get_scalar_detection_predictions)
+    
+    
+    magnitude_scaler = "/home/edc240000/DeepML/output/scaler/magnitude_scaler.pkl"
+    batch_size = 100
+    
+    data = sbd.TXED()
+    n_events = 2500
+    n_noise = 2500
+    nrows, ncols = 5,5
+
+    noise_mask = create_sample_mask(metadata=data.metadata,category="noise",
+                                    n_samples=n_noise,random_state=42)
+    event_mask = create_sample_mask(metadata=data.metadata,category="earthquake_local",
+                                    n_samples=n_events,min_mag=2,random_state=42)
+
+    data.filter(noise_mask | event_mask)
+    
+    generators = prepare_data_generators(data=data,scaler_path=magnitude_scaler )
+    test_loader = DataLoader(generators["generator_test"], batch_size=100, shuffle=False)
+    
+    n_samples = 20
+    full_test_dataset = generators["generator_test"]
+    all_indices = list(range(len(full_test_dataset)))
+    random_indices = random.sample(all_indices, n_samples)
+
+    # Create a smaller dataset
+    small_test_dataset = Subset(full_test_dataset, random_indices)
+
+    # New DataLoader just for those samples
+    small_test_loader = DataLoader(small_test_dataset, batch_size=n_samples, shuffle=False)
+    
+    
+    model_classes = {
+    "Perceptron": Perceptron,
+    "DNN": DNN,
+    "CNNSE": CNNSE,
+    "CNNDE": CNNDE,
+    }
+    
+    model_paths = dict((x, f"/home/edc240000/DeepML/output/models/detection/{x}/best/best_model_{x}.pt") for x in model_classes.keys())
+    predictions = get_scalar_detection_predictions(model_classes=model_classes,
+                                model_paths=model_paths,
+                                data_loader=small_test_loader,
+                                load_y=True,load_x=True)
+    print(predictions)
+    # n_traces = np.random.randint(low=0, high=len(generators["generator_test"]),
+    #                              size=int(nrows*ncols))
+    # trace_loader = {}
+    # for idx in n_traces:
+    #     sample = generators["generator_test"][idx]
+        # x = sample["X"]
+        # y_scalar_detection = sample["y_scalar_detection"].squeeze()
+        # y_pred = test_predictions[sample_index]
+        
+    # print(n_traces)
+    # print(n_traces.shape)
+    # predictions = get_predictions(model_classes=model_classes,
+    #                               model_paths=model_paths,
+    #                               data_loader=DataLoader)
+    # print(predictions)
+    # outputs = load_detection_outputs(model_outputs=model_outputs)
+    name2plot = "CNNDE"
+    
+    # # # print(len(generators["generator_test"]))
+    # # # exit()
+    
+    # # # save_path = "/home/edc240000/DeepML/output/figures/detection_confussion_matrix.png"
+    # # # fig, axes = plot_detection_confusion_matrix(model_outputs, save_path=save_path,rows=2, cols=2)
+    save_path = "/home/edc240000/DeepML/output/figures/detection_test_examples.png"
+    # # test_predictions = outputs[name2plot]["y_pred"]
+    plot_scalar_detection_test_examples(predictions=predictions,
+                                        test_label=name2plot,
+                                        save_path=save_path,
+                                        cols=5,rows=5)
+    
+    # plot_SCA_roc_curves(model_outputs, save_path=save_path)

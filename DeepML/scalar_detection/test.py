@@ -17,10 +17,11 @@ from torch.utils.data import DataLoader
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from DeepML.model import *
 import json
 import matplotlib.pyplot as plt
-from utils import create_sample_mask, load_or_init_history, handle_checkpoint,prepare_data_generators
+
+from DeepML.scalar_detection.models import CNNSE,CNNDE,DNN,Perceptron,DetectionLoss
+from DeepML.utils import create_sample_mask,prepare_data_generators
 
 
 data = sbd.TXED()

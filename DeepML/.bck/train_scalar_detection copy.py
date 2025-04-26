@@ -17,7 +17,7 @@ from torch.utils.data import DataLoader
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from DeepML.model import *
+from DeepML.DeepML.detection_model import *
 import json
 import matplotlib.pyplot as plt
 from utils import create_sample_mask, load_or_init_history, handle_checkpoint,prepare_data_generators
