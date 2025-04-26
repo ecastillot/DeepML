@@ -383,7 +383,7 @@ def plot_multiple_histories(json_paths,label_paths,loss_limits=(-1,50),save_path
         ["Train Accuracy", "Dev Accuracy"],
         ["Train Accumulated Time", "Dev Accumulated Time"]
     ]
-    ylabels = ["Loss", "Accuracy", "Acum Time"]
+    ylabels = ["Loss", "Accuracy", "Acum Time [s]"]
 
     for row in range(3):
         for col in range(2):
