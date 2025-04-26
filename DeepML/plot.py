@@ -6,6 +6,7 @@ import torch
 import itertools
 from sklearn.metrics import confusion_matrix
 from utils import load_detection_outputs
+from sklearn.metrics import roc_curve, auc
 
 def plot_map(metadata, res="110m", connections=False, xlim=None, ylim=None, states=False, save_path=None, **kwargs):
     """
@@ -568,6 +569,52 @@ def plot_detection_confusion_matrix(model_outputs, save_path=None, rows=None, co
         
     return fig, axes
     
+def plot_detection_roc_curves(model_outputs, save_path=None):
+    """
+    Plot ROC curves for detection outputs of multiple models in a single axis.
+
+    Args:
+        model_outputs (dict): Dictionary with model names as keys and file paths as values.
+        save_path (str, optional): If provided, saves the figure at this path with dpi=300.
+
+    Returns:
+        fig (matplotlib.figure.Figure): The created matplotlib figure.
+        ax (matplotlib.axes._subplots.AxesSubplot): The matplotlib axis.
+    """
+    # Load all outputs
+    outputs = load_detection_outputs(model_outputs)
+    
+    fig, ax = plt.subplots(figsize=(8, 8))
+
+    for model_name, y in outputs.items():
+        y_true = y["y"]
+        y_score = y["y_pred"]  # Probabilities or continuous scores needed for ROC
+        
+        # Compute ROC curve and ROC area
+        fpr, tpr, _ = roc_curve(y_true, y_score)
+        roc_auc = auc(fpr, tpr)
+        
+        ax.plot(fpr, tpr, lw=3, label=f'{model_name} (AUC = {roc_auc:.2f})')
+    
+    ax.plot([0, 1], [0, 1], linestyle='--', color='gray', lw=3)
+    ax.set_xlim([-0.02, 1.02])
+    ax.set_ylim([-0.02, 1.02])
+    ax.set_xlabel('False Positive Rate', fontsize=16)
+    ax.set_ylabel('True Positive Rate', fontsize=16)
+    ax.tick_params(axis='both', which='major', labelsize=16)
+    ax.set_title('ROC Curves', fontsize=20, fontweight="bold")
+    ax.legend(loc='lower right', fontsize=14)
+    ax.grid(True)
+    
+    plt.tight_layout()
+    
+    # Save or show figure
+    if save_path:
+        fig.savefig(save_path, dpi=300, bbox_inches="tight")
+    else:
+        plt.show()
+        
+    return fig, ax
 
 if __name__ == "__main__":
     
@@ -750,6 +797,7 @@ if __name__ == "__main__":
         "CNNSE": "/home/edc240000/DeepML/output/model_outputs/detection/CNNSE/CNNSE_outputs.pt",
         "CNNDE": f"/home/edc240000/DeepML/output/model_outputs/detection/CNNDE/CNNDE_outputs.pt"
     }
-    save_path = "/home/edc240000/DeepML/output/figures/detection_confussion_matrix.png"
-    fig, axes = plot_detection_confusion_matrix(model_outputs, save_path=save_path,rows=2, cols=2)
-    
+    # save_path = "/home/edc240000/DeepML/output/figures/detection_confussion_matrix.png"
+    # fig, axes = plot_detection_confusion_matrix(model_outputs, save_path=save_path,rows=2, cols=2)
+    save_path = "/home/edc240000/DeepML/output/figures/detection_ROC.png"
+    plot_detection_roc_curves(model_outputs, save_path=save_path)
