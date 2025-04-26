@@ -486,83 +486,71 @@ def plot_scalar_detection_examples(generator, random_index=True,
 
 
 def plot_scalar_detection_test_examples(predictions,
-                                        test_label,
-                                        # alpha=0.15,
                                         rows=1, cols=1,
-                                        save_path=None):
+                                        savedir_path=None):
     """
-    Plot waveform examples with scalar detection labels using a colored background.
+    Plot scalar detection test examples for multiple models.
 
-    Parameters
-    ----------
-    random_index : bool, optional
-        Whether to randomly sample from the generator. Default is True.
-    start_index : int, optional
-        Index to start sampling from the generator (used if random_index=False). Default is 0.
-    alpha : float, optional
-        Transparency level of the background color (0 to 1). Default is 0.15.
-    rows : int, optional
-        Number of subplot rows. Default is 10.
-    cols : int, optional
-        Number of subplot columns. Default is 7.
-    save_path : str or None, optional
-        Path to save the figure. If None, the figure is not saved.
+    Args:
+        predictions (dict): Dictionary with model names as keys and prediction dicts as values.
+        rows (int, optional): Number of rows in the plot grid. Default is 1.
+        cols (int, optional): Number of columns in the plot grid. Default is 1.
+        savedir_path (str, optional): Directory where the plots will be saved. 
+            If None, plots are not saved.
 
-    Returns
-    -------
-    fig : matplotlib.figure.Figure
-        The figure object for further customization or saving.
-    axs : np.ndarray of matplotlib.axes.Axes
-        Array of subplot axes.
+    Returns:
+        figs (dict): Dictionary with model names as keys and (figure, axes) tuples as values.
     """
-    total_plots = rows * cols
-    fig, axs = plt.subplots(rows, cols, figsize=(cols * 2, rows * 1.5))
-    axs = axs.flatten()
-    
-    model_predictions = predictions[test_label]
-    x = model_predictions["x"]
-    y = model_predictions["y"].squeeze()
-    y_pred = model_predictions["y_pred"].squeeze()
-
-    for idx in range(total_plots):
-        ax = axs[idx]
+    figs = {}
+    for test_label,model_predictions in predictions.items():
+        # model_predictions = predictions[test_label]
+        total_plots = rows * cols
+        fig, axs = plt.subplots(rows, cols, figsize=(cols * 2, rows * 1.5))
+        axs = axs.flatten()
         
-        x_idx = x[idx]
-        y_idx = y[idx]
-        y_pred_idx = y_pred[idx]
+        x = model_predictions["x"]
+        y = model_predictions["y"].squeeze()
+        y_pred = model_predictions["y_pred"].squeeze()
+
+        for idx in range(total_plots):
+            ax = axs[idx]
+            
+            x_idx = x[idx]
+            y_idx = y[idx]
+            y_pred_idx = y_pred[idx]
+            
+            
+            if y_idx == np.round(y_pred_idx):
+                color = "green"
+            else:
+                color = "red"
+
+            # Plot waveform
+            ax.plot(x_idx.T, color=color, linewidth=0.8)
+
+            # Set colored background
+            # ax.set_facecolor(color)
+            # ax.patch.set_alpha(alpha)
+
+            # Formatting
+            ax.set_xticks([])
+            ax.set_yticks([])
+            ax.set_title(f"%.2f"%y_pred_idx, fontsize=14, fontweight='bold')
+
+        # Hide any unused subplots
+        for idx in range(total_plots, len(axs)):
+            axs[idx].axis("off")
+
+        plt.tight_layout()
+
+        if savedir_path:
+            os.makedirs(savedir_path,exist_ok=True)
+            save_path = os.path.join(savedir_path,f"test_examples_{test_label}.png")
+            fig.savefig(save_path, dpi=300, bbox_inches='tight')
         
+        figs[test_label] = (fig,axs)
         
-        print(y_pred_idx, y_idx)
-        if y_idx == round(y_pred_idx):
-            color = "green"
-        else:
-            color = "red"
-
-        # label = y_scalar_detection.item()
-        # color = "green" if label == 1 else "red"
-
-        # Plot waveform
-        ax.plot(x_idx.T, color=color, linewidth=0.8)
-
-        # Set colored background
-        # ax.set_facecolor(color)
-        # ax.patch.set_alpha(alpha)
-
-        # Formatting
-        ax.set_xticks([])
-        ax.set_yticks([])
-        ax.set_title(f"{y_pred}", fontsize=14, fontweight='bold')
-
-    # Hide any unused subplots
-    for idx in range(total_plots, len(axs)):
-        axs[idx].axis("off")
-
-    plt.tight_layout()
-
-    if save_path:
-        fig.savefig(save_path, dpi=300, bbox_inches='tight')
-
-    return fig, axs
+    return figs
 
 def plot_detection_confusion_matrix(model_outputs, save_path=None, rows=None, cols=None):
     """
@@ -948,7 +936,7 @@ if __name__ == "__main__":
                                 model_paths=model_paths,
                                 data_loader=small_test_loader,
                                 load_y=True,load_x=True)
-    print(predictions)
+    # print(predictions)
     # n_traces = np.random.randint(low=0, high=len(generators["generator_test"]),
     #                              size=int(nrows*ncols))
     # trace_loader = {}
@@ -972,11 +960,10 @@ if __name__ == "__main__":
     
     # # # save_path = "/home/edc240000/DeepML/output/figures/detection_confussion_matrix.png"
     # # # fig, axes = plot_detection_confusion_matrix(model_outputs, save_path=save_path,rows=2, cols=2)
-    save_path = "/home/edc240000/DeepML/output/figures/detection_test_examples.png"
+    savedir_path = "/home/edc240000/DeepML/output/figures/detection_test_examples"
     # # test_predictions = outputs[name2plot]["y_pred"]
     plot_scalar_detection_test_examples(predictions=predictions,
-                                        test_label=name2plot,
-                                        save_path=save_path,
-                                        cols=5,rows=5)
+                                        savedir_path=savedir_path,
+                                        cols=4,rows=4)
     
     # plot_SCA_roc_curves(model_outputs, save_path=save_path)
