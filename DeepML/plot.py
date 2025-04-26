@@ -277,19 +277,9 @@ def plot_training_history(json_path, save_path=None, dpi=300):
     if history.get("dev_loss"):
         ax1.plot(epochs, history["dev_loss"], label="Dev Loss", marker="o")
 
-    if history.get("train_det_loss"):
-        ax1.plot(epochs, history["train_det_loss"], label="Train Det Loss", linestyle="--")
-    if history.get("dev_det_loss"):
-        ax1.plot(epochs, history["dev_det_loss"], label="Dev Det Loss", linestyle="--")
-
-    if history.get("train_mag_loss"):
-        ax1.plot(epochs, history["train_mag_loss"], label="Train Mag Loss", linestyle="--")
-    if history.get("dev_mag_loss"):
-        ax1.plot(epochs, history["dev_mag_loss"], label="Dev Mag Loss", linestyle="--")
-
-    ax1.set_ylabel("Loss")
-    ax1.set_title("Loss History")
-    ax1.legend()
+    ax1.set_ylabel("Loss",fontsize=18)
+    ax1.set_title("Loss History",fontsize=18)
+    ax1.legend(fontsize=16,loc="center right")
     ax1.grid(True)
 
     # --- Plot Accuracies ---
@@ -298,13 +288,41 @@ def plot_training_history(json_path, save_path=None, dpi=300):
     if history.get("dev_acc"):
         ax2.plot(epochs, history["dev_acc"], label="Dev Accuracy", marker="o")
 
-    ax2.set_xlabel("Epoch")
-    ax2.set_ylabel("Accuracy")
-    ax2.set_title("Accuracy History")
-    ax2.legend()
+    ax2.set_xlabel("Epoch",fontsize=18)
+    ax2.set_ylabel("Accuracy",fontsize=18)
+    ax2.set_title("Accuracy History",fontsize=18)
+    ax2.legend(fontsize=16,loc="center right")
     ax2.grid(True)
 
-    fig.tight_layout()
+    ax1.tick_params(axis='both', labelsize=16)
+    ax2.tick_params(axis='both', labelsize=16)
+
+    # --- Highlight Best Epoch ---
+    if "dev_loss" in history:
+        best_epoch_idx = history["dev_loss"].index(min(history["dev_loss"]))
+        best_epoch = best_epoch_idx + 1
+
+        best_dev_loss = history["dev_loss"][best_epoch_idx]
+        best_train_loss = history["train_loss"][best_epoch_idx]
+        best_dev_acc = history["dev_acc"][best_epoch_idx] if "dev_acc" in history else None
+        best_train_acc = history["train_acc"][best_epoch_idx] if "train_acc" in history else None
+
+        # Vertical lines
+        for ax in (ax1, ax2):
+            ax.axvline(best_epoch, color="black", linestyle="--", linewidth=3)
+
+        # --- Add a text box outside the top axis (above ax1) ---
+        summary_text = (
+        f"$\\bf{{Best\\ Epoch:{best_epoch}}}$   |  "
+        f"Dev Loss: {best_dev_loss:.4f}, Train Loss: {best_train_loss:.4f}  |  "
+        f"Dev Acc: {best_dev_acc:.2%}, Train Acc: {best_train_acc:.2%}"
+    )
+
+        fig.text(0.5, 0.97, summary_text, ha="center", va="top",
+                 fontsize=11, 
+                 bbox=dict(boxstyle="round,pad=0.5", facecolor="lightyellow", edgecolor="gray"))
+
+    fig.tight_layout(rect=[0, 0, 1, 0.95])  # Leave space at top for textbox
 
     # Optional: Save the figure
     if save_path:
@@ -389,8 +407,14 @@ def plot_scalar_detection_examples(generator, random_index=True,
 
 if __name__ == "__main__":
     
-    json_path = "/home/edc240000/DeepML/output/models/detection/Perceptron/best/training_history_Perceptron.json"
-    fig_path = "/home/edc240000/DeepML/output/models/detection/Perceptron/best//training_history.png"
+    # json_path = "/home/edc240000/DeepML/output/models/detection/Perceptron/best/training_history_Perceptron.json"
+    # fig_path = "/home/edc240000/DeepML/output/models/detection/Perceptron/best//training_history.png"
+    json_path = "/home/edc240000/DeepML/output/models/detection/DNN/best/training_history_DNN.json"
+    fig_path = "/home/edc240000/DeepML/output/models/detection/DNN/best//training_history.png"
+    json_path = "/home/edc240000/DeepML/output/models/detection/CNNSE/best/training_history_CNNSE.json"
+    fig_path = "/home/edc240000/DeepML/output/models/detection/CNNSE/best//training_history.png"
+    json_path = "/home/edc240000/DeepML/output/models/detection/CNNDE/best/training_history_CNNDE.json"
+    fig_path = "/home/edc240000/DeepML/output/models/detection/CNNDE/best//training_history.png"
     fig, ax = plot_training_history( json_path , 
                                     save_path=fig_path, 
                                     dpi=300)
