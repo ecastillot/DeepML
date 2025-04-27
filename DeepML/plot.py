@@ -11,7 +11,7 @@ import itertools
 from sklearn.metrics import confusion_matrix
 from sklearn.metrics import roc_curve, auc
 
-from utils import load_detection_outputs
+from utils import load_detection_outputs,load_magnitude_outputs,denormalize_magnitude
 
 def plot_map(metadata, res="110m", connections=False, xlim=None, ylim=None, states=False, save_path=None, **kwargs):
     """
@@ -775,6 +775,7 @@ def plot_detection_roc_curves(model_outputs, save_path=None):
     return fig, ax
 
 def plot_magnitude_model_predictions(models_dict, save_path=None, dpi=300,
+                                     magnitude_scaler=None,
                                      limits=None):
     """
     Plot predicted vs true values for multiple models.
@@ -791,6 +792,8 @@ def plot_magnitude_model_predictions(models_dict, save_path=None, dpi=300,
     - fig: matplotlib.figure.Figure
     - axes: numpy.ndarray of matplotlib.axes.Axes
     """
+    models_dict = load_magnitude_outputs(models_dict)
+    
     n_models = len(models_dict)
     n_cols = min(2, n_models)  # Up to 2 subplots per row
     n_rows = (n_models + n_cols - 1) // n_cols
@@ -799,9 +802,15 @@ def plot_magnitude_model_predictions(models_dict, save_path=None, dpi=300,
     axes = axes.flatten() if n_models > 1 else [axes]
 
     for idx, (model_name, data) in enumerate(models_dict.items()):
-        y = data["y"].detach().cpu().numpy().flatten()
-        y_pred = data["y_pred"].detach().cpu().numpy().flatten()
-
+        y = data["y"]
+        y_pred = data["y_pred"]
+        
+        if magnitude_scaler:
+            y = denormalize_magnitude(y.reshape(-1, 1),
+                                      scaler_path=magnitude_scaler).flatten()
+            y_pred = denormalize_magnitude(y_pred.reshape(-1, 1,),
+                                           scaler_path=magnitude_scaler).flatten()
+            
         ax = axes[idx]
         ax.scatter(y, y_pred, alpha=0.5, s=10)
         
@@ -1155,7 +1164,8 @@ if __name__ == "__main__":
 
     save_dir = "/home/edc240000/DeepML/output/model_outputs/magnitude/"  # folder where you want to save the results
 
-    save_path = "/home/edc240000/DeepML/output/figures/magnitude_1to1.png"
+    # save_path = "/home/edc240000/DeepML/output/figures/magnitude_1to1.png"
+    save_path = "/home/edc240000/DeepML/output/figures/magnitude_1to1_ok.png"
 
     model_classes = {
         "Perceptron": Perceptron,
@@ -1166,10 +1176,19 @@ if __name__ == "__main__":
 
     model_paths = dict((x, f"/home/edc240000/DeepML/output/models/magnitude/{x}/best/best_model_{x}.pt") for x in model_classes.keys())
 
-    predictions = get_scalar_magnitude_predictions(model_classes=model_classes,
-                                    model_paths=model_paths,
-                                    data_loader=test_loader,
-                                    save_dir=save_dir,
-                                    load_y=True)
-    plot_magnitude_model_predictions(models_dict=predictions,save_path=save_path,
-                                     limits=(-4,4))
+    model_outputs = {
+        "Perceptron": "/home/edc240000/DeepML/output/model_outputs/magnitude/Perceptron/Perceptron_outputs.pt",
+        "DNN": "/home/edc240000/DeepML/output/model_outputs/magnitude/DNN/DNN_outputs.pt",
+        "CNNSE": "/home/edc240000/DeepML/output/model_outputs/magnitude/CNNSE/CNNSE_outputs.pt",
+        "CNNDE": f"/home/edc240000/DeepML/output/model_outputs/magnitude/CNNDE/CNNDE_outputs.pt"
+    }
+
+    # predictions = get_scalar_magnitude_predictions(model_classes=model_classes,
+    #                                 model_paths=model_paths,
+    #                                 data_loader=test_loader,
+    #                                 save_dir=save_dir,
+    #                                 load_y=True)
+    plot_magnitude_model_predictions(models_dict=model_outputs,save_path=save_path,
+                                    magnitude_scaler=magnitude_scaler,
+                                    
+                                     limits=(-1,5))

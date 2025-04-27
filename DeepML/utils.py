@@ -8,6 +8,14 @@ import numpy as np
 import pandas as pd
 import joblib
 
+def normalize_magnitude(mag_array, scaler_path="magnitude_scaler.pkl"):
+    scaler = joblib.load(scaler_path)
+    return scaler.transform(mag_array)
+
+def denormalize_magnitude(norm_array, scaler_path="magnitude_scaler.pkl"):
+    scaler = joblib.load(scaler_path)
+    return scaler.inverse_transform(norm_array)
+
 def load_or_init_history(history_path="history.json"):
     """
     Load existing training history or initialize a new one based on user input.
@@ -267,6 +275,38 @@ def load_detection_outputs(model_outputs):
     
     return outputs
         
+def load_magnitude_outputs(model_outputs):
+    """
+    Load magnitude outputs from saved files.
+
+    Args:
+        model_outputs (dict): A dictionary where keys are model names and
+                              values are paths to the saved output files.
+
+    Returns:
+        dict: A dictionary where each key is a model name and the value is
+              another dictionary with 'y' (true labels) and 'y_pred' (predictions).
+    """
+    outputs = {}
+    
+    for model_name, output_path in model_outputs.items():
+        # Load the saved file
+        data = torch.load(output_path)
+        
+        # Extract true labels and predictions
+        y = data["y"].squeeze().cpu().numpy()
+        y_pred = data["y_pred"].squeeze().cpu().numpy()
+        
+        
+        print(f"loading: y {y.shape} | y_pred {y_pred.shape} ")
+        
+        # Store in the outputs dictionary
+        outputs[model_name] = {
+            "y": y,
+            "y_pred": y_pred
+        }
+    
+    return outputs
         
 def get_scalar_detection_predictions(model_classes,model_paths,data_loader,save_dir=None,
                     load_x=False,load_y=False):
