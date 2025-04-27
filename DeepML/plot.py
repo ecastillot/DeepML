@@ -1268,4 +1268,5 @@ if __name__ == "__main__":
     plot_magnitude_model_residuals(models_dict=model_outputs,
                                    magnitude_scaler=magnitude_scaler,
                                    save_path=save_path,
-                                   limits=(-4,4))
+                                #    limits=(-2500,2500)
+                                   limits=(-2,2)                                   )
