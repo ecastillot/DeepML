@@ -32,6 +32,12 @@ def load_or_init_history(history_path="history.json"):
                 "train_acc": [],
                 "dev_acc": [],
                 "dev_loss": [],
+                "train_mse": [],
+                "train_mae":[],
+                "train_rmse":[],
+                "dev_mse": [],
+                "dev_mae":[],
+                "dev_rmse":[],
                 "acum_time" : []
             }
             print("🗑️  Previous history cleared. Starting fresh...\n")
@@ -44,6 +50,12 @@ def load_or_init_history(history_path="history.json"):
             "dev_loss": [],
             "train_acc": [],
             "dev_acc": [],
+            "train_mse": [],
+            "train_mae":[],
+            "train_rmse":[],
+            "dev_mse": [],
+            "dev_mae":[],
+            "dev_rmse":[],
             "acum_time" : []
         }
         print("📄 No previous history found. Starting fresh...\n")
@@ -148,7 +160,8 @@ def prepare_data_generators(data, scaler_path):
             norm_mag = np.array([[0.0]])
         else:
             norm_mag = normalize_magnitude(metadata["source_magnitude"])
-        state_dict["y_magnitude"] = norm_mag
+            # print(metadata["source_magnitude"],norm_mag)
+        state_dict["y_scalar_magnitude"] = norm_mag
 
     # Event labeller
     def detection_labeler(state_dict):

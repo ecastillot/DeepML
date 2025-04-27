@@ -155,7 +155,7 @@ for model in models:
         end_time = time.time()
         epoch_time = end_time - start_time
         if not history["acum_time"]:
-            acum_time = 0
+            acum_time = epoch_time
         else:
             acum_time = history["acum_time"][-1]+epoch_time
         

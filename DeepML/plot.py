@@ -412,6 +412,90 @@ def plot_multiple_histories(json_paths,label_paths,loss_limits=(-1,50),save_path
 
     return fig, axes
 
+def plot_multiple_magnitude_histories(json_paths,label_paths,
+                                      loss_limits=None,
+                                      mse_limits=None,
+                                      mae_limits=None,
+                                      rmse_limits=None,
+                                      save_path=None, dpi=300):
+    """
+    Plots loss, ... for train and dev from multiple training history JSON files.
+
+    Parameters:
+    - json_paths (list of str): List of paths to JSON files.
+    - save_path (str, optional): Path to save the resulting figure.
+    - dpi (int, optional): Dots per inch for saving the figure.
+
+    Returns:
+    - fig: The matplotlib figure.
+    - axes: 2D list of axes [rows][columns].
+    """
+    fig, axes = plt.subplots(4, 2, figsize=(14, 12), sharex=False)
+    colors = plt.cm.viridis_r(range(0, 256, max(1, 256 // len(json_paths))))
+
+    for idx, json_path in enumerate(json_paths):
+        with open(json_path, "r") as f:
+            history = json.load(f)
+
+        label = label_paths[idx]
+
+        # Safe plotting for each key
+        for row_idx, (train_key, dev_key) in enumerate([
+            ("train_mse", "dev_mse"),
+            ("train_mae", "dev_mae"),
+            ("train_rmse", "dev_rmse"),
+            ("acum_time", "acum_time")
+        ]):
+            train_vals = history.get(train_key, [])
+            dev_vals = history.get(dev_key, [])
+
+            if (train_key in ["train_loss","dev_loss"]) and (loss_limits is not None):
+                axes[row_idx][0].set_ylim(*loss_limits)
+                axes[row_idx][1].set_ylim(*loss_limits)
+            elif (train_key in ["train_mse","dev_mse"]) and (mse_limits is not None):
+                axes[row_idx][0].set_ylim(*mse_limits)
+                axes[row_idx][1].set_ylim(*mse_limits)
+            elif (train_key in ["train_mae","dev_mae"]) and (mae_limits is not None):
+                axes[row_idx][0].set_ylim(*mae_limits)
+                axes[row_idx][1].set_ylim(*mae_limits)
+            elif (train_key in ["train_rmse","dev_rmse"]) and (rmse_limits is not None):
+                axes[row_idx][0].set_ylim(*rmse_limits)
+                axes[row_idx][1].set_ylim(*rmse_limits)
+            
+            if train_vals:
+                epochs = range(1, len(train_vals) + 1)
+                axes[row_idx][0].plot(epochs, train_vals, label=label, color=colors[idx],linewidth=3)
+            if dev_vals:
+                epochs = range(1, len(dev_vals) + 1)
+                axes[row_idx][1].plot(epochs, dev_vals, label=label, color=colors[idx],linewidth=3)
+
+    # Titles and labels
+    titles = [
+        ["Train MSE", "Dev MSE"],
+        ["Train MAE", "Dev MAE"],
+        ["Train RMSE", "Dev RMSE"],
+        ["Train Accumulated Time", "Dev Accumulated Time"]
+    ]
+    ylabels = ["MSE", "MAE","RMSE", "Acum Time [s]"]
+
+    for row in range(4):
+        for col in range(2):
+            axes[row][col].set_title(titles[row][col], fontsize=18)
+            axes[row][col].set_xlabel("Epoch", fontsize=16)
+            axes[row][col].set_ylabel(ylabels[row], fontsize=16)
+            axes[row][col].grid(True)
+            axes[row][col].tick_params(axis='both',labelsize=16)
+
+    axes[0][0].legend(fontsize=16, loc="best")
+
+    fig.tight_layout()
+
+    if save_path:
+        fig.savefig(save_path, dpi=dpi)
+        print(f"Figure saved to {save_path}")
+
+    return fig, axes
+
 def plot_scalar_detection_examples(generator, random_index=True,
                                    start_index=0, alpha=0.15,
                                    rows=10, cols=7,
@@ -719,6 +803,7 @@ if __name__ == "__main__":
     # label_paths = [label_p,label_dnn,label_cnnse,label_cnnde]
     # fig, ax = plot_multiple_histories(json_paths,  label_paths,
     #                                 save_path=fig_path, 
+    #                                   loss_limits=(-1,50),
     #                                 dpi=300)
     
     
@@ -881,64 +966,100 @@ if __name__ == "__main__":
     ###################### PLOT TEST EXAMPLES #################
     
     
-    import sys
-    path = "/home/edc240000/DeepML"
-    sys.path.append(path)
+    # import sys
+    # path = "/home/edc240000/DeepML"
+    # sys.path.append(path)
 
-    # ##### tx dataset #####
-    import seisbench.data as sbd
-    from torch.utils.data import DataLoader
-    from torch.utils.data import Subset, DataLoader
+    # # ##### tx dataset #####
+    # import seisbench.data as sbd
+    # from torch.utils.data import DataLoader
+    # from torch.utils.data import Subset, DataLoader
     
-    from DeepML.scalar_detection.models import CNNSE,CNNDE,DNN,Perceptron
-    from utils import (create_sample_mask, prepare_data_generators,
-                        load_detection_outputs, get_scalar_detection_predictions)
+    # from DeepML.scalar_detection.models import CNNSE,CNNDE,DNN,Perceptron
+    # from utils import (create_sample_mask, prepare_data_generators,
+    #                     load_detection_outputs, get_scalar_detection_predictions)
     
     
-    magnitude_scaler = "/home/edc240000/DeepML/output/scaler/magnitude_scaler.pkl"
-    batch_size = 100
+    # magnitude_scaler = "/home/edc240000/DeepML/output/scaler/magnitude_scaler.pkl"
+    # batch_size = 100
     
-    data = sbd.TXED()
-    n_events = 2500
-    n_noise = 2500
-    nrows, ncols = 4,4
+    # data = sbd.TXED()
+    # n_events = 2500
+    # n_noise = 2500
+    # nrows, ncols = 4,4
 
-    noise_mask = create_sample_mask(metadata=data.metadata,category="noise",
-                                    n_samples=n_noise,random_state=42)
-    event_mask = create_sample_mask(metadata=data.metadata,category="earthquake_local",
-                                    n_samples=n_events,min_mag=2,random_state=42)
+    # noise_mask = create_sample_mask(metadata=data.metadata,category="noise",
+    #                                 n_samples=n_noise,random_state=42)
+    # event_mask = create_sample_mask(metadata=data.metadata,category="earthquake_local",
+    #                                 n_samples=n_events,min_mag=2,random_state=42)
 
-    data.filter(noise_mask | event_mask)
+    # data.filter(noise_mask | event_mask)
     
-    generators = prepare_data_generators(data=data,scaler_path=magnitude_scaler )
-    test_loader = DataLoader(generators["generator_test"], batch_size=100, shuffle=False)
+    # generators = prepare_data_generators(data=data,scaler_path=magnitude_scaler )
+    # test_loader = DataLoader(generators["generator_test"], batch_size=100, shuffle=False)
     
-    n_samples = nrows* ncols
-    full_test_dataset = generators["generator_test"]
-    all_indices = list(range(len(full_test_dataset)))
-    random_indices = random.sample(all_indices, n_samples)
+    # n_samples = nrows* ncols
+    # full_test_dataset = generators["generator_test"]
+    # all_indices = list(range(len(full_test_dataset)))
+    # random_indices = random.sample(all_indices, n_samples)
 
-    # Create a smaller dataset
-    small_test_dataset = Subset(full_test_dataset, random_indices)
+    # # Create a smaller dataset
+    # small_test_dataset = Subset(full_test_dataset, random_indices)
 
-    # New DataLoader just for those samples
-    small_test_loader = DataLoader(small_test_dataset, batch_size=n_samples, shuffle=False)
+    # # New DataLoader just for those samples
+    # small_test_loader = DataLoader(small_test_dataset, batch_size=n_samples, shuffle=False)
     
     
-    model_classes = {
-    "Perceptron": Perceptron,
-    "DNN": DNN,
-    "CNNSE": CNNSE,
-    "CNNDE": CNNDE,
-    }
+    # model_classes = {
+    # "Perceptron": Perceptron,
+    # "DNN": DNN,
+    # "CNNSE": CNNSE,
+    # "CNNDE": CNNDE,
+    # }
     
-    model_paths = dict((x, f"/home/edc240000/DeepML/output/models/detection/{x}/best/best_model_{x}.pt") for x in model_classes.keys())
-    predictions = get_scalar_detection_predictions(model_classes=model_classes,
-                                model_paths=model_paths,
-                                data_loader=small_test_loader,
-                                load_y=True,load_x=True)
-    savedir_path = "/home/edc240000/DeepML/output/figures/detection_test_examples"
-    plot_scalar_detection_test_examples(predictions=predictions,
-                                        savedir_path=savedir_path,
-                                        cols=4,rows=4)
+    # model_paths = dict((x, f"/home/edc240000/DeepML/output/models/detection/{x}/best/best_model_{x}.pt") for x in model_classes.keys())
+    # predictions = get_scalar_detection_predictions(model_classes=model_classes,
+    #                             model_paths=model_paths,
+    #                             data_loader=small_test_loader,
+    #                             load_y=True,load_x=True)
+    # savedir_path = "/home/edc240000/DeepML/output/figures/detection_test_examples"
+    # plot_scalar_detection_test_examples(predictions=predictions,
+    #                                     savedir_path=savedir_path,
+    #                                     cols=4,rows=4)
+    
+    
+    #######################################################################################   MAGNITUDE
+    
+    label_p = "Perceptron"
+    json_path_p = f"/home/edc240000/DeepML/output/models/magnitude/{label_p}/best/training_history_{label_p}.json"
+    fig_path_p = f"/home/edc240000/DeepML/output/models/magnitude/training_history_{label_p}.png"
+    # plot_training_history(json_path=json_path_p,save_path=fig_path_p)
+    
+    label_dnn = "DNN"
+    json_path_dnn = f"/home/edc240000/DeepML/output/models/magnitude/{label_dnn}/best/training_history_{label_dnn}.json"
+    fig_path_dnn = f"/home/edc240000/DeepML/output/models/magnitude/training_history_{label_dnn}.png"
+    # plot_training_history(json_path=json_path_dnn,save_path=fig_path_dnn)
+    
+    label_cnnse = "CNNSE"
+    json_path_cnnse = f"/home/edc240000/DeepML/output/models/magnitude/{label_cnnse}/best/training_history_{label_cnnse}.json"
+    fig_path_cnnse = f"/home/edc240000/DeepML/output/models/magnitude/training_history_{label_cnnse}.png"
+    # plot_training_history(json_path=json_path_cnnse,save_path=fig_path_cnnse)
+    
+    
+    label_cnnde = "CNNDE"
+    json_path_cnnde = f"/home/edc240000/DeepML/output/models/magnitude/{label_cnnde}/best/training_history_{label_cnnde}.json"
+    fig_path_cnnde = f"/home/edc240000/DeepML/output/models/magnitude/training_history_{label_cnnde}.png"
+    # plot_training_history(json_path=json_path_cnnde,save_path=fig_path_cnnde)
+    
+    fig_path = "/home/edc240000/DeepML/output/models/magnitude/training_stats.png"
+    json_paths = [json_path_p,json_path_dnn,json_path_cnnse,json_path_cnnde]
+    label_paths = [label_p,label_dnn,label_cnnse,label_cnnde]
+    # json_paths = [json_path_cnnse]
+    # label_paths = [label_cnnse]
+    fig, ax = plot_multiple_magnitude_histories(json_paths,  label_paths,
+                                    save_path=fig_path, 
+                                      mse_limits=(0,1),
+                                      mae_limits=(0,1),
+                                      rmse_limits=(0,0.2),
+                                    dpi=300)
     
