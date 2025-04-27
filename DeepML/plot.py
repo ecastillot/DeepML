@@ -774,6 +774,65 @@ def plot_detection_roc_curves(model_outputs, save_path=None):
         
     return fig, ax
 
+def plot_magnitude_model_predictions(models_dict, save_path=None, dpi=300,
+                                     limits=None):
+    """
+    Plot predicted vs true values for multiple models.
+
+    Parameters:
+    - models_dict: dict
+        Keys are model names, values are dicts with keys "y" and "y_pred" (both torch tensors).
+    - save_path: str or None
+        If provided, saves the figure to this path.
+    - dpi: int
+        Dots per inch for saving the figure.
+
+    Returns:
+    - fig: matplotlib.figure.Figure
+    - axes: numpy.ndarray of matplotlib.axes.Axes
+    """
+    n_models = len(models_dict)
+    n_cols = min(2, n_models)  # Up to 2 subplots per row
+    n_rows = (n_models + n_cols - 1) // n_cols
+
+    fig, axes = plt.subplots(n_rows, n_cols, figsize=(5 * n_cols, 5 * n_rows))
+    axes = axes.flatten() if n_models > 1 else [axes]
+
+    for idx, (model_name, data) in enumerate(models_dict.items()):
+        y = data["y"].detach().cpu().numpy().flatten()
+        y_pred = data["y_pred"].detach().cpu().numpy().flatten()
+
+        ax = axes[idx]
+        ax.scatter(y, y_pred, alpha=0.5, s=10)
+        
+        # Plot 1-to-1 line
+        min_val = min(y.min(), y_pred.min())
+        max_val = max(y.max(), y_pred.max())
+        ax.plot([min_val, max_val], [min_val, max_val], 'r--', lw=2)
+        
+        if limits:
+            ax.set_xlim(*limits)
+            ax.set_ylim(*limits)
+
+        ax.set_title(model_name,fontsize=18,fontweight="bold")
+        ax.set_xlabel('True Values',fontsize=16)
+        ax.set_ylabel('Predicted Values',fontsize=16)
+        ax.tick_params(axis='both', labelsize=16)
+        ax.grid(True)
+
+    # Hide any unused subplots
+    for j in range(idx + 1, len(axes)):
+        fig.delaxes(axes[j])
+
+    plt.tight_layout()
+
+    if save_path:
+        fig.savefig(save_path, dpi=dpi)
+    else:
+        plt.show()
+
+    return fig, axes
+
 if __name__ == "__main__":
     
     ################################# plot history 
@@ -1030,36 +1089,87 @@ if __name__ == "__main__":
     
     #######################################################################################   MAGNITUDE
     
-    label_p = "Perceptron"
-    json_path_p = f"/home/edc240000/DeepML/output/models/magnitude/{label_p}/best/training_history_{label_p}.json"
-    fig_path_p = f"/home/edc240000/DeepML/output/models/magnitude/training_history_{label_p}.png"
-    # plot_training_history(json_path=json_path_p,save_path=fig_path_p)
+    # label_p = "Perceptron"
+    # json_path_p = f"/home/edc240000/DeepML/output/models/magnitude/{label_p}/best/training_history_{label_p}.json"
+    # fig_path_p = f"/home/edc240000/DeepML/output/models/magnitude/training_history_{label_p}.png"
+    # # plot_training_history(json_path=json_path_p,save_path=fig_path_p)
     
-    label_dnn = "DNN"
-    json_path_dnn = f"/home/edc240000/DeepML/output/models/magnitude/{label_dnn}/best/training_history_{label_dnn}.json"
-    fig_path_dnn = f"/home/edc240000/DeepML/output/models/magnitude/training_history_{label_dnn}.png"
-    # plot_training_history(json_path=json_path_dnn,save_path=fig_path_dnn)
+    # label_dnn = "DNN"
+    # json_path_dnn = f"/home/edc240000/DeepML/output/models/magnitude/{label_dnn}/best/training_history_{label_dnn}.json"
+    # fig_path_dnn = f"/home/edc240000/DeepML/output/models/magnitude/training_history_{label_dnn}.png"
+    # # plot_training_history(json_path=json_path_dnn,save_path=fig_path_dnn)
     
-    label_cnnse = "CNNSE"
-    json_path_cnnse = f"/home/edc240000/DeepML/output/models/magnitude/{label_cnnse}/best/training_history_{label_cnnse}.json"
-    fig_path_cnnse = f"/home/edc240000/DeepML/output/models/magnitude/training_history_{label_cnnse}.png"
-    # plot_training_history(json_path=json_path_cnnse,save_path=fig_path_cnnse)
+    # label_cnnse = "CNNSE"
+    # json_path_cnnse = f"/home/edc240000/DeepML/output/models/magnitude/{label_cnnse}/best/training_history_{label_cnnse}.json"
+    # fig_path_cnnse = f"/home/edc240000/DeepML/output/models/magnitude/training_history_{label_cnnse}.png"
+    # # plot_training_history(json_path=json_path_cnnse,save_path=fig_path_cnnse)
     
     
-    label_cnnde = "CNNDE"
-    json_path_cnnde = f"/home/edc240000/DeepML/output/models/magnitude/{label_cnnde}/best/training_history_{label_cnnde}.json"
-    fig_path_cnnde = f"/home/edc240000/DeepML/output/models/magnitude/training_history_{label_cnnde}.png"
-    # plot_training_history(json_path=json_path_cnnde,save_path=fig_path_cnnde)
+    # label_cnnde = "CNNDE"
+    # json_path_cnnde = f"/home/edc240000/DeepML/output/models/magnitude/{label_cnnde}/best/training_history_{label_cnnde}.json"
+    # fig_path_cnnde = f"/home/edc240000/DeepML/output/models/magnitude/training_history_{label_cnnde}.png"
+    # # plot_training_history(json_path=json_path_cnnde,save_path=fig_path_cnnde)
     
-    fig_path = "/home/edc240000/DeepML/output/models/magnitude/training_stats.png"
-    json_paths = [json_path_p,json_path_dnn,json_path_cnnse,json_path_cnnde]
-    label_paths = [label_p,label_dnn,label_cnnse,label_cnnde]
-    # json_paths = [json_path_cnnse]
-    # label_paths = [label_cnnse]
-    fig, ax = plot_multiple_magnitude_histories(json_paths,  label_paths,
-                                    save_path=fig_path, 
-                                      mse_limits=(0,1),
-                                      mae_limits=(0,1),
-                                      rmse_limits=(0,0.2),
-                                    dpi=300)
+    # fig_path = "/home/edc240000/DeepML/output/models/magnitude/training_stats.png"
+    # json_paths = [json_path_p,json_path_dnn,json_path_cnnse,json_path_cnnde]
+    # label_paths = [label_p,label_dnn,label_cnnse,label_cnnde]
+    # # json_paths = [json_path_cnnse]
+    # # label_paths = [label_cnnse]
+    # fig, ax = plot_multiple_magnitude_histories(json_paths,  label_paths,
+    #                                 save_path=fig_path, 
+    #                                   mse_limits=(0,1),
+    #                                   mae_limits=(0,1),
+    #                                   rmse_limits=(0,0.2),
+    #                                 dpi=300)
     
+    
+    ###################### Magnitude 1to1 #######
+    import sys
+    import os
+    
+    path = "/home/edc240000/DeepML"
+    sys.path.append(path)
+    root = "/groups/igonin/.seisbench"
+    os.environ["SEISBENCH_CACHE_ROOT"] = root
+    
+    import seisbench.data as sbd
+    from torch.utils.data import DataLoader
+    from DeepML.scalar_magnitude.models import CNNSE,CNNDE,DNN,Perceptron
+    from DeepML.utils import create_sample_mask,prepare_data_generators,get_scalar_magnitude_predictions
+    
+    data = sbd.TXED()
+
+    n_events = 5000
+
+    event_mask = create_sample_mask(metadata=data.metadata,category="earthquake_local",
+                                    n_samples=n_events,min_mag=-2,random_state=42)
+
+    data.filter( event_mask)
+
+    magnitude_scaler = "/home/edc240000/DeepML/output/scaler/magnitude_scaler.pkl"
+    generators = prepare_data_generators(data=data,scaler_path=magnitude_scaler )
+    train_loader = DataLoader(generators["generator_train"], batch_size=100, shuffle=True)
+    val_loader = DataLoader(generators["generator_dev"], batch_size=100, shuffle=False)
+    test_loader = DataLoader(generators["generator_test"], batch_size=100, shuffle=False)
+
+
+    save_dir = "/home/edc240000/DeepML/output/model_outputs/magnitude/"  # folder where you want to save the results
+
+    save_path = "/home/edc240000/DeepML/output/figures/magnitude_1to1.png"
+
+    model_classes = {
+        "Perceptron": Perceptron,
+        "DNN": DNN,
+        "CNNSE": CNNSE,
+        "CNNDE": CNNDE,
+    }
+
+    model_paths = dict((x, f"/home/edc240000/DeepML/output/models/magnitude/{x}/best/best_model_{x}.pt") for x in model_classes.keys())
+
+    predictions = get_scalar_magnitude_predictions(model_classes=model_classes,
+                                    model_paths=model_paths,
+                                    data_loader=test_loader,
+                                    save_dir=save_dir,
+                                    load_y=True)
+    plot_magnitude_model_predictions(models_dict=predictions,save_path=save_path,
+                                     limits=(-4,4))

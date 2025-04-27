@@ -1,2 +1,2 @@
 # DeepML
-Deep Learning for Local Magnitude
+Deep Learning for Earthquake detection and Magnitude Estimation

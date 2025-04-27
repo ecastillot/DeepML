@@ -321,3 +321,59 @@ def get_scalar_detection_predictions(model_classes,model_paths,data_loader,save_
         
         all_predictions[label] = model_pred
     return all_predictions
+
+
+def get_scalar_magnitude_predictions(model_classes,model_paths,data_loader,save_dir=None,
+                    load_x=False,load_y=False):
+    
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    
+    all_predictions = {}
+    for label, model_class in model_classes.items():
+        print(f"Loading model: {label}")
+        
+        model = model_class().to(device)
+        model.load_state_dict(torch.load(model_paths[label], map_location=device))
+        model.eval()
+        all_preds = []
+        all_targets = []
+        all_x = []
+        with torch.no_grad():
+            for batch in data_loader:
+                x = batch["X"].to(dtype=torch.float32)
+                y = batch["y_scalar_magnitude"].to(dtype=torch.float32)
+                y_pred = model(x)
+                
+                all_preds.append(y_pred)
+                
+                if load_y:
+                    all_targets.append(y)
+                if load_x:
+                    all_x.append(x)
+
+        # Concatenate results
+        predictions = torch.cat(all_preds)
+        msg = f"y_pred shape: {predictions.shape} "
+        
+        if all_targets:
+            all_targets = torch.cat(all_targets)
+            msg += f"| y shape: {all_targets.shape} "
+        if all_x:
+            all_x = torch.cat(all_x)
+            msg += f"| x shape: {all_x.shape} "
+            
+        print(msg)
+        
+        model_pred = {"y_pred": predictions, "y": all_targets,"x":all_x }
+                
+        print(f"{label} - Done with predictions.")
+        
+        if save_dir:
+            save_path = os.path.join(save_dir,label, f"{label}_outputs.pt")
+            os.makedirs(os.path.dirname(save_path), exist_ok=True)
+            torch.save(model_pred, save_path)
+            print(f"{label} - Predictions saved to {save_path}\n")
+        
+        all_predictions[label] = model_pred
+    return all_predictions
+
