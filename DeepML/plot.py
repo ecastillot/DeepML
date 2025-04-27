@@ -842,6 +842,76 @@ def plot_magnitude_model_predictions(models_dict, save_path=None, dpi=300,
 
     return fig, axes
 
+def plot_magnitude_model_residuals(models_dict, save_path=None, dpi=300,
+                                   magnitude_scaler=None,
+                                   limits=None, bins=50):
+    """
+    Plot residual histograms (y_pred - y_true) for multiple models.
+
+    Parameters:
+    - models_dict: dict
+        Keys are model names, values are dicts with keys "y" and "y_pred" (both torch tensors).
+    - save_path: str or None
+        If provided, saves the figure to this path.
+    - dpi: int
+        Dots per inch for saving the figure.
+    - magnitude_scaler: str or None
+        Path to magnitude scaler to denormalize values if needed.
+    - limits: tuple or None
+        (min, max) limits for x-axis (residual values).
+    - bins: int
+        Number of bins for the histogram.
+
+    Returns:
+    - fig: matplotlib.figure.Figure
+    - axes: numpy.ndarray of matplotlib.axes.Axes
+    """
+    models_dict = load_magnitude_outputs(models_dict)
+    
+    n_models = len(models_dict)
+    n_cols = min(2, n_models)  # Up to 2 subplots per row
+    n_rows = (n_models + n_cols - 1) // n_cols
+
+    fig, axes = plt.subplots(n_rows, n_cols, figsize=(5 * n_cols, 5 * n_rows))
+    axes = axes.flatten() if n_models > 1 else [axes]
+
+    for idx, (model_name, data) in enumerate(models_dict.items()):
+        y = data["y"]
+        y_pred = data["y_pred"]
+        
+        if magnitude_scaler:
+            y = denormalize_magnitude(y.reshape(-1, 1),
+                                      scaler_path=magnitude_scaler).flatten()
+            y_pred = denormalize_magnitude(y_pred.reshape(-1, 1),
+                                           scaler_path=magnitude_scaler).flatten()
+
+        residuals = y_pred - y
+        
+        ax = axes[idx]
+        ax.hist(residuals, bins=bins, alpha=0.7, color='steelblue', edgecolor='black')
+
+        if limits:
+            ax.set_xlim(*limits)
+
+        ax.set_title(f"{model_name}\nResiduals", fontsize=18, fontweight="bold")
+        ax.set_xlabel('Residual (Predicted - True)', fontsize=16)
+        ax.set_ylabel('Frequency', fontsize=16)
+        ax.tick_params(axis='both', labelsize=16)
+        ax.grid(True)
+
+    # Hide any unused subplots
+    for j in range(idx + 1, len(axes)):
+        fig.delaxes(axes[j])
+
+    plt.tight_layout()
+
+    if save_path:
+        fig.savefig(save_path, dpi=dpi)
+    else:
+        plt.show()
+
+    return fig, axes
+
 if __name__ == "__main__":
     
     ################################# plot history 
@@ -1165,7 +1235,6 @@ if __name__ == "__main__":
     save_dir = "/home/edc240000/DeepML/output/model_outputs/magnitude/"  # folder where you want to save the results
 
     # save_path = "/home/edc240000/DeepML/output/figures/magnitude_1to1.png"
-    save_path = "/home/edc240000/DeepML/output/figures/magnitude_1to1_ok.png"
 
     model_classes = {
         "Perceptron": Perceptron,
@@ -1176,19 +1245,27 @@ if __name__ == "__main__":
 
     model_paths = dict((x, f"/home/edc240000/DeepML/output/models/magnitude/{x}/best/best_model_{x}.pt") for x in model_classes.keys())
 
-    model_outputs = {
-        "Perceptron": "/home/edc240000/DeepML/output/model_outputs/magnitude/Perceptron/Perceptron_outputs.pt",
-        "DNN": "/home/edc240000/DeepML/output/model_outputs/magnitude/DNN/DNN_outputs.pt",
-        "CNNSE": "/home/edc240000/DeepML/output/model_outputs/magnitude/CNNSE/CNNSE_outputs.pt",
-        "CNNDE": f"/home/edc240000/DeepML/output/model_outputs/magnitude/CNNDE/CNNDE_outputs.pt"
-    }
 
     # predictions = get_scalar_magnitude_predictions(model_classes=model_classes,
     #                                 model_paths=model_paths,
     #                                 data_loader=test_loader,
     #                                 save_dir=save_dir,
     #                                 load_y=True)
+    
+    
+    model_outputs = {
+        "Perceptron": "/home/edc240000/DeepML/output/model_outputs/magnitude/Perceptron/Perceptron_outputs.pt",
+        "DNN": "/home/edc240000/DeepML/output/model_outputs/magnitude/DNN/DNN_outputs.pt",
+        "CNNSE": "/home/edc240000/DeepML/output/model_outputs/magnitude/CNNSE/CNNSE_outputs.pt",
+        "CNNDE": f"/home/edc240000/DeepML/output/model_outputs/magnitude/CNNDE/CNNDE_outputs.pt"
+    }
+    save_path = "/home/edc240000/DeepML/output/figures/magnitude_1to1_ok.png"
     plot_magnitude_model_predictions(models_dict=model_outputs,save_path=save_path,
                                     magnitude_scaler=magnitude_scaler,
-                                    
                                      limits=(-1,5))
+    
+    save_path = "/home/edc240000/DeepML/output/figures/residual_magnitude.png"
+    plot_magnitude_model_residuals(models_dict=model_outputs,
+                                   magnitude_scaler=magnitude_scaler,
+                                   save_path=save_path,
+                                   limits=(-4,4))
