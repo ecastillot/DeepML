@@ -10,8 +10,116 @@ import torch
 import itertools
 from sklearn.metrics import confusion_matrix
 from sklearn.metrics import roc_curve, auc
-
+from sklearn.metrics import r2_score
+from sklearn.metrics import r2_score, mean_absolute_error, mean_squared_error, median_absolute_error
 from utils import load_detection_outputs,load_magnitude_outputs,denormalize_magnitude
+
+
+from sklearn.metrics import precision_score, recall_score, f1_score, accuracy_score, confusion_matrix
+import pandas as pd
+
+def compute_scalar_magnitude_metrics(model_outputs, magnitude_scaler=None):
+    models_dict = load_detection_outputs(model_outputs)
+    results = []
+
+    for model_name, data in models_dict.items():
+        y = data["y"]
+        y_pred = data["y_pred"]
+
+        if magnitude_scaler:
+            y = denormalize_magnitude(y.reshape(-1, 1), scaler_path=magnitude_scaler).flatten()
+            y_pred = denormalize_magnitude(y_pred.reshape(-1, 1), scaler_path=magnitude_scaler).flatten()
+
+        r2 = r2_score(y, y_pred)
+        mae = mean_absolute_error(y, y_pred)
+        mse = mean_squared_error(y, y_pred)
+        rmse = np.sqrt(mse)
+        medae = median_absolute_error(y, y_pred)
+
+        results.append({
+            "Model": model_name,
+            "R²": round(r2, 2),
+            "MAE": round(mae, 2),
+            "RMSE": round(rmse, 2),
+            "MSE": round(mse, 2),
+            "MedAE": float(round(float(medae), 2))
+
+        })
+
+    df = pd.DataFrame(results)
+    
+    # Sort by R² descending (or you can sort by RMSE ascending)
+    df_sorted = df.sort_values(by="R²", ascending=False).reset_index(drop=True)
+    return df_sorted
+
+def compute_scalar_detection_metrics(model_outputs):
+    """
+    Compute classification metrics for each model.
+
+    Args:
+        model_outputs (dict): Dictionary with model names as keys and file paths as values.
+
+    Returns:
+        pd.DataFrame: DataFrame sorted by F1-score (descending).
+    """
+    # Load all outputs
+    outputs = load_detection_outputs(model_outputs)
+    metrics = []
+
+    for model_name, y in outputs.items():
+        y_true = y["y"]
+        y_pred = np.round(y["y_pred"])
+        cm = confusion_matrix(y_true, y_pred)
+
+        # Extract TP, FP, TN, FN
+        tn, fp, fn, tp = cm.ravel()
+        
+        # Calculate metrics
+        precision = precision_score(y_true, y_pred, zero_division=0)
+        recall = recall_score(y_true, y_pred, zero_division=0)
+        f1 = f1_score(y_true, y_pred, zero_division=0)
+        acc = accuracy_score(y_true, y_pred)
+
+        metrics.append({
+            "Model": model_name,
+            "TP": tp, "FP": fp, "TN": tn, "FN": fn,
+            "Accuracy": round(acc,4),
+            "Precision": round(precision,4),
+            "Recall": round(recall,4),
+            "F1 Score": round(f1,4)
+        })
+
+    df = pd.DataFrame(metrics)
+    return df.sort_values(by="F1 Score", ascending=False)
+
+
+def plot_metrics_table(metrics_df, save_path=None):
+    """
+    Plot a table of metrics as a figure.
+    """
+    fig, ax = plt.subplots(figsize=(12, 0.6 * len(metrics_df)))
+    ax.axis('off')
+    table = ax.table(cellText=metrics_df.values,
+                     colLabels=metrics_df.columns,
+                     loc='center',
+                     cellLoc='center',
+                     colLoc='center')
+    
+    table.auto_set_font_size(False)
+    table.set_fontsize(12)
+    table.scale(1.0, 1.5)
+    
+    # Bold the column headers
+    for col_idx in range(len(metrics_df.columns)):
+        cell = table[(0, col_idx)]
+        cell.set_text_props(weight='bold')
+
+    if save_path:
+        fig.savefig(save_path, dpi=300, bbox_inches="tight")
+    else:
+        plt.show()
+    
+    return fig
 
 def plot_map(metadata, res="110m", connections=False, xlim=None, ylim=None, states=False, save_path=None, **kwargs):
     """
@@ -776,7 +884,7 @@ def plot_detection_roc_curves(model_outputs, save_path=None):
 
 def plot_magnitude_model_predictions(models_dict, save_path=None, dpi=300,
                                      magnitude_scaler=None,
-                                     limits=None):
+                                     limits=None,r2=True):
     """
     Plot predicted vs true values for multiple models.
 
@@ -810,7 +918,9 @@ def plot_magnitude_model_predictions(models_dict, save_path=None, dpi=300,
                                       scaler_path=magnitude_scaler).flatten()
             y_pred = denormalize_magnitude(y_pred.reshape(-1, 1,),
                                            scaler_path=magnitude_scaler).flatten()
-            
+
+        r2 = r2_score(y, y_pred)
+        
         ax = axes[idx]
         ax.scatter(y, y_pred, alpha=0.5, s=10)
         
@@ -822,6 +932,13 @@ def plot_magnitude_model_predictions(models_dict, save_path=None, dpi=300,
         if limits:
             ax.set_xlim(*limits)
             ax.set_ylim(*limits)
+        if r2:
+            # Add R² text
+            ax.text(0.05, 0.95, f'$R^2$ = {r2:.2f}',
+                    transform=ax.transAxes, fontsize=14,
+                    verticalalignment='top', 
+                    bbox=dict(boxstyle='round', 
+                            facecolor='white', alpha=0.7))
 
         ax.set_title(model_name,fontsize=18,fontweight="bold")
         ax.set_xlabel('True Values',fontsize=16)
@@ -1099,7 +1216,17 @@ if __name__ == "__main__":
     # save_path = "/home/edc240000/DeepML/output/figures/detection_ROC.png"
     # plot_detection_roc_curves(model_outputs, save_path=save_path)
     
-    
+     ################# Metrics table ###########
+    model_outputs = {
+        "Perceptron": "/home/edc240000/DeepML/output/model_outputs/detection/Perceptron/Perceptron_outputs.pt",
+        "DNN": "/home/edc240000/DeepML/output/model_outputs/detection/DNN/DNN_outputs.pt",
+        "CNNSE": "/home/edc240000/DeepML/output/model_outputs/detection/CNNSE/CNNSE_outputs.pt",
+        "CNNDE": f"/home/edc240000/DeepML/output/model_outputs/detection/CNNDE/CNNDE_outputs.pt"
+    }
+    save_path = "/home/edc240000/DeepML/output/figures/detection_metrics_table.png"
+    metrics_df = compute_scalar_detection_metrics(model_outputs)
+    print(metrics_df)
+    plot_metrics_table(metrics_df,save_path)
     
     ###################### PLOT TEST EXAMPLES #################
     
@@ -1202,71 +1329,86 @@ if __name__ == "__main__":
     #                                 dpi=300)
     
     
-    ###################### Magnitude 1to1 #######
-    import sys
-    import os
+    # ###################### Magnitude Generate rpedictions #######
+    # import sys
+    # import os
     
-    path = "/home/edc240000/DeepML"
-    sys.path.append(path)
-    root = "/groups/igonin/.seisbench"
-    os.environ["SEISBENCH_CACHE_ROOT"] = root
+    # path = "/home/edc240000/DeepML"
+    # sys.path.append(path)
+    # root = "/groups/igonin/.seisbench"
+    # os.environ["SEISBENCH_CACHE_ROOT"] = root
     
-    import seisbench.data as sbd
-    from torch.utils.data import DataLoader
-    from DeepML.scalar_magnitude.models import CNNSE,CNNDE,DNN,Perceptron
-    from DeepML.utils import create_sample_mask,prepare_data_generators,get_scalar_magnitude_predictions
+    # import seisbench.data as sbd
+    # from torch.utils.data import DataLoader
+    # from DeepML.scalar_magnitude.models import CNNSE,CNNDE,DNN,Perceptron
+    # from DeepML.utils import create_sample_mask,prepare_data_generators,get_scalar_magnitude_predictions
     
-    data = sbd.TXED()
+    # data = sbd.TXED()
 
-    n_events = 5000
+    # n_events = 5000
 
-    event_mask = create_sample_mask(metadata=data.metadata,category="earthquake_local",
-                                    n_samples=n_events,min_mag=-2,random_state=42)
+    # event_mask = create_sample_mask(metadata=data.metadata,category="earthquake_local",
+    #                                 n_samples=n_events,min_mag=-2,random_state=42)
 
-    data.filter( event_mask)
+    # data.filter( event_mask)
 
+    # magnitude_scaler = "/home/edc240000/DeepML/output/scaler/magnitude_scaler.pkl"
+    # generators = prepare_data_generators(data=data,scaler_path=magnitude_scaler )
+    # train_loader = DataLoader(generators["generator_train"], batch_size=100, shuffle=True)
+    # val_loader = DataLoader(generators["generator_dev"], batch_size=100, shuffle=False)
+    # test_loader = DataLoader(generators["generator_test"], batch_size=100, shuffle=False)
+
+
+    # save_dir = "/home/edc240000/DeepML/output/model_outputs/magnitude/"  # folder where you want to save the results
+
+    # # save_path = "/home/edc240000/DeepML/output/figures/magnitude_1to1.png"
+
+    # model_classes = {
+    #     "Perceptron": Perceptron,
+    #     "DNN": DNN,
+    #     "CNNSE": CNNSE,
+    #     "CNNDE": CNNDE,
+    # }
+
+    # model_paths = dict((x, f"/home/edc240000/DeepML/output/models/magnitude/{x}/best/best_model_{x}.pt") for x in model_classes.keys())
+
+
+    # # predictions = get_scalar_magnitude_predictions(model_classes=model_classes,
+    # #                                 model_paths=model_paths,
+    # #                                 data_loader=test_loader,
+    # #                                 save_dir=save_dir,
+    # #                                 load_y=True)
+    
+    # ###################### Magnitude 1to1 and residuals #######
+    # magnitude_scaler = "/home/edc240000/DeepML/output/scaler/magnitude_scaler.pkl"
+    # model_outputs = {
+    #     "Perceptron": "/home/edc240000/DeepML/output/model_outputs/magnitude/Perceptron/Perceptron_outputs.pt",
+    #     "DNN": "/home/edc240000/DeepML/output/model_outputs/magnitude/DNN/DNN_outputs.pt",
+    #     "CNNSE": "/home/edc240000/DeepML/output/model_outputs/magnitude/CNNSE/CNNSE_outputs.pt",
+    #     "CNNDE": f"/home/edc240000/DeepML/output/model_outputs/magnitude/CNNDE/CNNDE_outputs.pt"
+    # }
+    # save_path = "/home/edc240000/DeepML/output/figures/magnitude_1to1_ok.png"
+    # plot_magnitude_model_predictions(models_dict=model_outputs,save_path=save_path,
+    #                                 magnitude_scaler=magnitude_scaler,
+    #                                  limits=(-1,5))
+    
+    # save_path = "/home/edc240000/DeepML/output/figures/residual_magnitude.png"
+    # plot_magnitude_model_residuals(models_dict=model_outputs,
+    #                                magnitude_scaler=magnitude_scaler,
+    #                                save_path=save_path,
+    #                             #    limits=(-2500,2500)
+    #                                limits=(-2,2)    )  
+    # 
+    # ############### Metrics Table
     magnitude_scaler = "/home/edc240000/DeepML/output/scaler/magnitude_scaler.pkl"
-    generators = prepare_data_generators(data=data,scaler_path=magnitude_scaler )
-    train_loader = DataLoader(generators["generator_train"], batch_size=100, shuffle=True)
-    val_loader = DataLoader(generators["generator_dev"], batch_size=100, shuffle=False)
-    test_loader = DataLoader(generators["generator_test"], batch_size=100, shuffle=False)
-
-
-    save_dir = "/home/edc240000/DeepML/output/model_outputs/magnitude/"  # folder where you want to save the results
-
-    # save_path = "/home/edc240000/DeepML/output/figures/magnitude_1to1.png"
-
-    model_classes = {
-        "Perceptron": Perceptron,
-        "DNN": DNN,
-        "CNNSE": CNNSE,
-        "CNNDE": CNNDE,
-    }
-
-    model_paths = dict((x, f"/home/edc240000/DeepML/output/models/magnitude/{x}/best/best_model_{x}.pt") for x in model_classes.keys())
-
-
-    # predictions = get_scalar_magnitude_predictions(model_classes=model_classes,
-    #                                 model_paths=model_paths,
-    #                                 data_loader=test_loader,
-    #                                 save_dir=save_dir,
-    #                                 load_y=True)
-    
-    
     model_outputs = {
         "Perceptron": "/home/edc240000/DeepML/output/model_outputs/magnitude/Perceptron/Perceptron_outputs.pt",
         "DNN": "/home/edc240000/DeepML/output/model_outputs/magnitude/DNN/DNN_outputs.pt",
         "CNNSE": "/home/edc240000/DeepML/output/model_outputs/magnitude/CNNSE/CNNSE_outputs.pt",
         "CNNDE": f"/home/edc240000/DeepML/output/model_outputs/magnitude/CNNDE/CNNDE_outputs.pt"
     }
-    save_path = "/home/edc240000/DeepML/output/figures/magnitude_1to1_ok.png"
-    plot_magnitude_model_predictions(models_dict=model_outputs,save_path=save_path,
-                                    magnitude_scaler=magnitude_scaler,
-                                     limits=(-1,5))
-    
-    save_path = "/home/edc240000/DeepML/output/figures/residual_magnitude.png"
-    plot_magnitude_model_residuals(models_dict=model_outputs,
-                                   magnitude_scaler=magnitude_scaler,
-                                   save_path=save_path,
-                                #    limits=(-2500,2500)
-                                   limits=(-2,2)                                   )
+    save_path = "/home/edc240000/DeepML/output/figures/magnitude_metrics_table.png"
+    metrics_df = compute_scalar_magnitude_metrics(model_outputs,magnitude_scaler=magnitude_scaler)
+    print(metrics_df)
+
+    plot_metrics_table(metrics_df,save_path)
