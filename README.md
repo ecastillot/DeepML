@@ -1,4 +1,4 @@
-# DeepML
+# Earthquake detection and Magnitude Estimation using DL
 Deep Learning for Earthquake detection and Magnitude Estimation (Scalar approach)
 # Examples in Test dataset
 ![DeepML](output/figures/test_detection_examples.png) 
